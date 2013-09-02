@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
 import java.security.MessageDigest;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -40,12 +39,9 @@ import java.util.zip.ZipOutputStream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.http.HttpStatus;
-
 import android.app.Service;
 import android.content.Intent;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.TextUtils;
@@ -58,10 +54,11 @@ import com.gallatinsystems.survey.device.util.Base64;
 import com.gallatinsystems.survey.device.util.ConstantUtil;
 import com.gallatinsystems.survey.device.util.FileUtil;
 import com.gallatinsystems.survey.device.util.HttpUtil;
-import com.gallatinsystems.survey.device.util.MultipartStream;
 import com.gallatinsystems.survey.device.util.PropertyUtil;
 import com.gallatinsystems.survey.device.util.StatusUtil;
 import com.gallatinsystems.survey.device.util.StringUtil;
+import com.gallatinsystems.survey.device.util.Swift;
+import com.gallatinsystems.survey.device.util.Swift.UploadListener;
 import com.gallatinsystems.survey.device.util.ViewUtil;
 
 /**
@@ -93,10 +90,9 @@ public class DataSyncService extends Service {
     private static final String NOTIFICATION_PN_PARAM = "&phoneNumber=";
     private static final String CHECKSUM_PARAM = "&checksum=";
     private static final String IMEI_PARAM = "&imei=";
-    private static final String DATA_CONTENT_TYPE = "application/zip";
-    private static final String S3_DATA_FILE_PATH = "devicezip";
-    private static final String IMAGE_CONTENT_TYPE = "image/jpeg";
-    private static final String S3_IMAGE_FILE_PATH = "images";
+    
+    private static final String SWIFT_ZIP_CONTAINER = "deviceZip";
+    private static final String SWIFT_IMAGES = "images";
 
     private static final int BUF_SIZE = 2048;
 
@@ -232,11 +228,10 @@ public class DataSyncService extends Service {
             String serverBase, int uploadIndex) {
         databaseAdaptor.updateTransmissionHistory(zipFileData.respondentIDs,
                 fileName, ConstantUtil.IN_PROGRESS_STATUS);
-        boolean isOk = sendFile(fileName, S3_DATA_FILE_PATH,
-                props.getProperty(ConstantUtil.DATA_S3_POLICY),
-                props.getProperty(ConstantUtil.DATA_S3_SIG),
-                DATA_CONTENT_TYPE);
-        if (isOk) {
+        
+        boolean ok = sendFile(fileName, SWIFT_ZIP_CONTAINER, destName);
+                        
+        if (ok) {
             // Notify GAE back-end that data is available
             if (sendProcessingNotification(serverBase, destName, zipFileData.checksum)) {
                 // Mark everything completed
@@ -263,11 +258,7 @@ public class DataSyncService extends Service {
     }
 
     private boolean uploadImage(String image) {
-        return sendFile(image,
-                S3_IMAGE_FILE_PATH,
-                props.getProperty(ConstantUtil.IMAGE_S3_POLICY),
-                props.getProperty(ConstantUtil.IMAGE_S3_SIG),
-                IMAGE_CONTENT_TYPE);
+        return sendFile(image, SWIFT_IMAGES, getDestName(image));
     }
 
     private void sendImages(Map<String, List<String>> imagePaths) {
@@ -680,88 +671,50 @@ public class DataSyncService extends Service {
      * 
      * @param fileAbsolutePath
      */
-    private boolean sendFile(String fileAbsolutePath, String dir,
-            String policy, String sig, String contentType) {
-
+    private boolean sendFile(String path, String container, final String name) {
+        boolean ok = true;
+        File file = new File(path);
+        
         try {
-            String fileName = fileAbsolutePath;
-            if (fileName.contains(File.separator)) {
-                fileName = fileName.substring(fileName
-                        .lastIndexOf(File.separator)); // TODO: Why show
-                                                       // separator?
-            }
-            final String fileNameForNotification = fileName;
-            fireNotification(ConstantUtil.PROGRESS, fileName);
+            fireNotification(ConstantUtil.PROGRESS, name);
+            
+            //Swift Upload
+            Swift swift = new Swift(props.getProperty(ConstantUtil.OPENSTACK_URL),
+                    props.getProperty(ConstantUtil.OPENSTACK_USER),
+                    props.getProperty(ConstantUtil.OPENSTACK_KEY));
+            
+            UploadListener listener = new UploadListener() {
+                @Override
+                public void uploadProgress(long bytesUploaded, long totalBytes) {
+                    double percentComplete = 0.0d;
+                    if (bytesUploaded > 0 && totalBytes > 0) {
+                        percentComplete = ((double) bytesUploaded)
+                                / ((double) totalBytes);
+                    }
+                    if (percentComplete > 1.0d) {
+                        percentComplete = 1.0d;
+                    }
+                    fireNotification(ConstantUtil.PROGRESS, 
+                            PCT_FORMAT.format(percentComplete) + " - " + name);
+                }
+            };
+            
+            ok = swift.uploadFile(container, name, file, listener);
 
-            // Generate checksum, to be compared against response's ETag
-            final String checksum = FileUtil.getMD5Checksum(fileAbsolutePath);
-
-            MultipartStream stream = new MultipartStream(new URL(
-                    props.getProperty(ConstantUtil.DATA_UPLOAD_URL)));
-
-            stream.addFormField("key", dir + "/${filename}");
-            stream.addFormField("AWSAccessKeyId",
-                    props.getProperty(ConstantUtil.S3_ID));
-            stream.addFormField("acl", "public-read");
-            stream.addFormField("success_action_redirect",
-                    "http://www.gallatinsystems.com/SuccessUpload.html");
-            stream.addFormField("policy", policy);
-            stream.addFormField("signature", sig);
-            stream.addFormField("Content-Type", contentType);
-            stream.addFile("file", fileAbsolutePath, null);
-            int code = stream
-                    .execute(new MultipartStream.MultipartStreamStatusListner() {
-                        @Override
-                        public void uploadProgress(long bytesSent,
-                                long totalBytes) {
-                            double percentComplete = 0.0d;
-                            if (bytesSent > 0 && totalBytes > 0) {
-                                percentComplete = ((double) bytesSent)
-                                        / ((double) totalBytes);
-                            }
-                            if (percentComplete > 1.0d) {
-                                percentComplete = 1.0d;
-                            }
-                            fireNotification(ConstantUtil.PROGRESS,
-                                    PCT_FORMAT.format(percentComplete) + " - "
-                                            + fileNameForNotification);
-                        }
-                    });
-
-            /*
-             * Determine if an upload to Amazon S3 is successful. The response
-             * headers should contain a redirection to a URL, in which query, a
-             * parameter called "etag" will be the md5 checksum of the uploaded
-             * file.
-             */
-            String etag = null;
-            if (code == HttpStatus.SC_SEE_OTHER) {
-                String location = stream.getResponseHeader("Location");
-                Uri uri = Uri.parse(location);
-                etag = uri.getQueryParameter("etag");
-                etag = etag.replaceAll("\"", "");// Remove quotes
-                Log.d(TAG, "ETag: " + etag);
+            if (ok) {
+                fireNotification(ConstantUtil.FILE_COMPLETE, name);
             } else {
-                Log.e(TAG, "Server returned a bad code after upload: " + code);
-            }
-
-            if (etag != null && etag.equals(checksum)) {
-                fireNotification(ConstantUtil.FILE_COMPLETE,
-                        fileNameForNotification);
-            } else {
-                Log.e(TAG, "Server returned a bad checksum after upload: " + checksum);
-                fireNotification(ConstantUtil.ERROR,
-                        getString(R.string.uploaderror) + " "
-                                + fileNameForNotification);
-                return false;
+                Log.e(TAG, "Error uploading file: " + name);
+                fireNotification(ConstantUtil.ERROR, getString(R.string.uploaderror) + " "
+                        + name);
             }
         } catch (Exception e) {
             Log.e(TAG, "Could not send upload " + e.getMessage(), e);
 
             PersistentUncaughtExceptionHandler.recordException(e);
-            return false;
+            ok = false;
         }
-        return true;
+        return ok;
     }
 
     /**

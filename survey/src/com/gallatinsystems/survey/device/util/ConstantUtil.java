@@ -290,6 +290,10 @@ public class ConstantUtil {
     public static final String INCLUDE_OPTIONAL_ICONS = "includeOptionalIcons";
     public static final String PROMPT_ON_OPT_CHANGE = "promptOnOptionChange";
     public static final String DEFAULT_SETTINGS = "defaultSettings";
+    
+    public static final String OPENSTACK_URL = "openstack_url";
+    public static final String OPENSTACK_USER = "openstack_user";
+    public static final String OPENSTACK_KEY = "openstack_key";
 
     /**
      * resource related constants
