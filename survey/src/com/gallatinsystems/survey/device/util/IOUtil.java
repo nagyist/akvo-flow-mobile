@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.gallatinsystems.survey.device.util.Swift.UploadListener;
+
 import android.util.Log;
 
 public class IOUtil {
@@ -29,10 +31,21 @@ public class IOUtil {
     private static final int IO_BUFFER_SIZE = 8192;
 
     public static void copyStream(InputStream in, OutputStream out) throws IOException {
+        copyStream(in, out, 0, null);
+    }
+
+    public static void copyStream(InputStream in, OutputStream out, long totalBytes,
+            UploadListener listener) throws IOException {
+        long bytesWritten = 0;// Only useful in the presence of a listener
         byte[] b = new byte[IO_BUFFER_SIZE];
+        
         int read;
         while ((read = in.read(b)) != -1) {
             out.write(b, 0, read);
+            bytesWritten += read;
+            if (listener != null) {
+                listener.uploadProgress(bytesWritten, totalBytes);
+            }
         }
     }
 
