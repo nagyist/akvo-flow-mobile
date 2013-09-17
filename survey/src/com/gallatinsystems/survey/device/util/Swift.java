@@ -48,7 +48,6 @@ public class Swift {
     }
 
     private static final String TAG = Swift.class.getSimpleName();
-    private static final int BUFFER_SIZE = 8192;
 
     private String mApiUrl;
     private String mUsername;
@@ -59,15 +58,54 @@ public class Swift {
         mUsername = username;
         mPassword = password;
     }
+    
+    public void downloadFile(String container, String name, OutputStream outputStream)
+            throws IOException {
+        Log.i(TAG, "Downloading file: " + name);
+        get(container, name, outputStream);
+    }
 
     public boolean uploadFile(String container, String name, File file,
             UploadListener listener){
-        Log.i(TAG, "uploading file: " + name);
+        Log.i(TAG, "Uploading file: " + name);
         try {
             return put(container, name, file, listener);
         } catch (IOException e) {
             Log.e(TAG, e.getMessage());
             return false;
+        }
+    }
+    
+    private boolean get(String container, String name, OutputStream outputStream) 
+            throws IOException {
+        InputStream in = null;
+        OutputStream out = null;
+        HttpURLConnection conn = null;
+        boolean ok = false;
+
+        try {
+            URL url = new URL(mApiUrl + "/" + container + "/" + name);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty(Header.AUTH, getAuthHeader());
+
+            in = new BufferedInputStream(conn.getInputStream());
+            out = new BufferedOutputStream(outputStream);
+            
+            IOUtil.copyStream(in, out);
+
+            int status = getStatusCode(conn);
+            ok = (status == HttpStatus.SC_OK);
+            if (!ok) {
+                Log.e(TAG, "Status Code: " + status + ". Expected: 200 - OK");
+            }
+            
+            return ok;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+            IOUtil.closeSilently(in);
+            IOUtil.closeSilently(out);
         }
     }
 
@@ -88,31 +126,11 @@ public class Swift {
 
             in = new BufferedInputStream(new FileInputStream(file));
             out = new BufferedOutputStream(conn.getOutputStream());
-
-            final long totalBytes = file.length();
-            long bytesWritten = 0;
-
-            byte[] b = new byte[BUFFER_SIZE];
-            int read;
-            while ((read = in.read(b)) != -1) {
-                out.write(b, 0, read);
-                bytesWritten += read;
-                if (listener != null) {
-                    listener.uploadProgress(bytesWritten, totalBytes);
-                }
-            }
+            
+            IOUtil.copyStream(in, out, file.length(), listener);
             out.flush();
 
-            int status = 0;
-            try {
-                status = conn.getResponseCode();
-            } catch (IOException e) {
-                // HttpUrlConnection will throw an IOException if any 4XX
-                // response is sent. If we request the status again, this
-                // time the internal status will be properly set, and we'll be
-                // able to retrieve it.
-                status = conn.getResponseCode();
-            }
+            int status = getStatusCode(conn);
             ok = (status == HttpStatus.SC_CREATED);
             if (!ok) {
                 Log.e(TAG, "Status Code: " + status + ". Expected: 201 - Created");
@@ -120,19 +138,27 @@ public class Swift {
 
             return ok;
         } finally {
-            if (conn != null)
+            if (conn != null) {
                 conn.disconnect();
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Exception ignored) {}
             }
-            if (out != null) {
-                try {
-                    out.close();
-                } catch (Exception ignored) {}
-            }
+            IOUtil.closeSilently(in);
+            IOUtil.closeSilently(out);
         }
+    }
+    
+    private static int getStatusCode(HttpURLConnection conn) throws IOException {
+        int status = 0;
+        try {
+            status = conn.getResponseCode();
+        } catch (IOException e) {
+            // HttpUrlConnection will throw an IOException if any 4XX
+            // response is sent. If we request the status again, this
+            // time the internal status will be properly set, and we'll be
+            // able to retrieve it.
+            status = conn.getResponseCode();
+        }
+        
+        return status;
     }
 	
 	private String getAuthHeader() {

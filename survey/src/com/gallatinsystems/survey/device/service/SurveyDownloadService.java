@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.StringTokenizer;
@@ -55,6 +56,7 @@ import com.gallatinsystems.survey.device.util.LangsPreferenceUtil;
 import com.gallatinsystems.survey.device.util.PlatformUtil;
 import com.gallatinsystems.survey.device.util.PropertyUtil;
 import com.gallatinsystems.survey.device.util.StatusUtil;
+import com.gallatinsystems.survey.device.util.Swift;
 import com.gallatinsystems.survey.device.util.ViewUtil;
 
 /**
@@ -229,14 +231,17 @@ public class SurveyDownloadService extends Service {
     private boolean downloadSurvey(String serverBase, Survey survey) {
         boolean success = false;
         try {
-            HttpUtil.httpDownload(
-                    props.getProperty(ConstantUtil.SURVEY_S3_URL)
-                            + survey.getId() + ConstantUtil.ARCHIVE_SUFFIX,
-                    FileUtil.getFileOutputStream(
-                            survey.getId() + ConstantUtil.ARCHIVE_SUFFIX,
-                            ConstantUtil.DATA_DIR,
-                            props.getBoolean(ConstantUtil.USE_INTERNAL_STORAGE),
-                            this));
+            //Swift download
+            Swift swift = new Swift(props.getProperty(ConstantUtil.OPENSTACK_URL),
+                    props.getProperty(ConstantUtil.OPENSTACK_USER),
+                    props.getProperty(ConstantUtil.OPENSTACK_KEY));
+            final String container = props.getProperty(ConstantUtil.SURVEYS_CONTAINER);
+            final String name = survey.getId() + ConstantUtil.ARCHIVE_SUFFIX;
+            OutputStream out = FileUtil.getFileOutputStream(name,
+                    ConstantUtil.DATA_DIR, false, this);
+            
+            swift.downloadFile(container, name, out);
+            
             extractAndSave(FileUtil.getFileInputStream(survey.getId()
                     + ConstantUtil.ARCHIVE_SUFFIX, ConstantUtil.DATA_DIR,
                     props.getBoolean(ConstantUtil.USE_INTERNAL_STORAGE), this));
