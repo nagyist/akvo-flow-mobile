@@ -278,12 +278,6 @@ public class ConstantUtil {
     /**
      * property file keys
      */
-    public static final String S3_ID = "s3Id";
-    public static final String DATA_S3_POLICY = "dataS3Policy";
-    public static final String DATA_S3_SIG = "dataS3Sig";
-    public static final String IMAGE_S3_POLICY = "imageS3Policy";
-    public static final String IMAGE_S3_SIG = "imageS3Sig";
-    public static final String DATA_UPLOAD_URL = "dataUploadUrl";
     public static final String SERVER_BASE = "serverBase";
     public static final String SURVEY_S3_URL = "surveyS3Url";
     public static final String USE_INTERNAL_STORAGE = "useInternalStorage";
@@ -294,6 +288,8 @@ public class ConstantUtil {
     public static final String OPENSTACK_URL = "openstack_url";
     public static final String OPENSTACK_USER = "openstack_user";
     public static final String OPENSTACK_KEY = "openstack_key";
+    public static final String SURVEYS_CONTAINER = "surveys_container";
+    public static final String RESPONSES_CONTAINER = "responses_container";
 
     /**
      * resource related constants

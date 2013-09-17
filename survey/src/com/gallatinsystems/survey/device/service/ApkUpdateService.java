@@ -144,7 +144,7 @@ public class ApkUpdateService extends Service {
      */
     private void downloadApk(String fileName, String version) {
         try {
-            String remoteFile = props.getProperty(ConstantUtil.DATA_UPLOAD_URL)
+            String remoteFile = props.getProperty(ConstantUtil.OPENSTACK_URL) + "/"
                     + ConstantUtil.REMOTE_APK_DIR + fileName;
 
             String localPath = FileUtil.getPathForFile(fileName,
