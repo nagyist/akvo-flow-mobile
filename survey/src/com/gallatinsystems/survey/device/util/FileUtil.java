@@ -195,6 +195,7 @@ public class FileUtil {
             path = file;
         } else {
             String dir = getStorageDirectory(subDir, useInternal);
+            findOrCreateDir(dir);
             path = dir + file;
         }
         return path;
