@@ -62,14 +62,26 @@ public class Swift {
     
     public boolean downloadFile(String container, String name, String filepath)
             throws IOException {
-        Log.i(TAG, "Downloading file: " + name);
-        return get(container, name, filepath);
+        Log.d(TAG, "Downloading file: " + name + "...");
+        if (get(container, name, filepath)) {
+            Log.d(TAG, name + " succesfully downloaded");
+            return true;
+        } else {
+            Log.e(TAG, "Error downloading file: " + name);
+            return false;
+        }
     }
 
     public boolean uploadFile(String container, String name, File file,
             UploadListener listener) throws IOException {
-        Log.i(TAG, "Uploading file: " + name);
-        return put(container, name, file, listener);
+        Log.d(TAG, "Uploading file: " + name + "...");
+        if (put(container, name, file, listener)) {
+            Log.d(TAG, name + " succesfully uploaded");
+            return true;
+        } else {
+            Log.e(TAG, "Error uploading file: " + name);
+            return false;
+        }
     }
     
     private boolean get(String container, String name, String filepath) 

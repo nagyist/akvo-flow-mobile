@@ -248,13 +248,12 @@ public class SurveyDownloadService extends Service {
             survey.setLocation(SD_LOC);
             success = true;
         } catch (IOException e) {
-            Log.e(TAG, "Could write survey file " + survey.getFileName(), e);
+            Log.e(TAG, "Could not write survey file " + survey.getFileName(), e);
             String text = getResources().getString(R.string.cannotupdate);
             ViewUtil.fireNotification(text, text, this, FAIL_ID, null);
             PersistentUncaughtExceptionHandler
                     .recordException(new TransferException(survey.getId(),
                             null, e));
-
         } catch (Exception e) {
             Log.e(TAG, "Could not download survey " + survey.getId(), e);
 
@@ -264,7 +263,6 @@ public class SurveyDownloadService extends Service {
             PersistentUncaughtExceptionHandler
                     .recordException(new TransferException(survey.getId(),
                             null, e));
-
         }
         return success;
     }
