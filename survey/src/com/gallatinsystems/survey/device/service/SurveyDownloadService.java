@@ -52,6 +52,7 @@ import com.gallatinsystems.survey.device.exception.TransferException;
 import com.gallatinsystems.survey.device.util.ConstantUtil;
 import com.gallatinsystems.survey.device.util.FileUtil;
 import com.gallatinsystems.survey.device.util.HttpUtil;
+import com.gallatinsystems.survey.device.util.IOUtil;
 import com.gallatinsystems.survey.device.util.LangsPreferenceUtil;
 import com.gallatinsystems.survey.device.util.PlatformUtil;
 import com.gallatinsystems.survey.device.util.PropertyUtil;
@@ -237,14 +238,10 @@ public class SurveyDownloadService extends Service {
                     props.getProperty(ConstantUtil.OPENSTACK_KEY));
             final String container = props.getProperty(ConstantUtil.SURVEYS_CONTAINER);
             final String name = survey.getId() + ConstantUtil.ARCHIVE_SUFFIX;
-            OutputStream out = FileUtil.getFileOutputStream(name,
-                    ConstantUtil.DATA_DIR, false, this);
+            final String filepath = FileUtil.getPathForFile(name, ConstantUtil.DATA_DIR, false);
             
-            swift.downloadFile(container, name, out);
-            
-            extractAndSave(FileUtil.getFileInputStream(survey.getId()
-                    + ConstantUtil.ARCHIVE_SUFFIX, ConstantUtil.DATA_DIR,
-                    props.getBoolean(ConstantUtil.USE_INTERNAL_STORAGE), this));
+            swift.downloadFile(container, name, filepath);
+            extractAndSave(filepath);
 
             survey.setFileName(survey.getId() + ConstantUtil.XML_SUFFIX);
             survey.setType(DEFAULT_TYPE);
@@ -280,22 +277,24 @@ public class SurveyDownloadService extends Service {
      * @param f
      * @throws IOException
      */
-    private void extractAndSave(FileInputStream zipFile) throws IOException {
-        ZipInputStream zis = new ZipInputStream(zipFile);
-        ZipEntry entry;
-        while ((entry = zis.getNextEntry()) != null) {
-            FileOutputStream fout = FileUtil.getFileOutputStream(
-                    entry.getName(), ConstantUtil.DATA_DIR,
-                    props.getBoolean(ConstantUtil.USE_INTERNAL_STORAGE), this);
-            byte[] buffer = new byte[2048];
-            int size;
-            while ((size = zis.read(buffer, 0, buffer.length)) != -1) {
-                fout.write(buffer, 0, size);
+    private void extractAndSave(String filePath) throws IOException {
+        ZipInputStream zis = null;
+        OutputStream out = null;
+        try {
+            zis = new ZipInputStream(new FileInputStream(filePath));
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                out = FileUtil.getFileOutputStream(
+                        entry.getName(), ConstantUtil.DATA_DIR,
+                        props.getBoolean(ConstantUtil.USE_INTERNAL_STORAGE), this);
+                
+                IOUtil.copyStream(zis, out);
+                zis.closeEntry();
             }
-            fout.close();
-            zis.closeEntry();
+        } finally {
+            IOUtil.closeSilently(out);
+            IOUtil.closeSilently(zis);
         }
-        zis.close();
     }
 
     /**

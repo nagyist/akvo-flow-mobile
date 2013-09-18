@@ -672,47 +672,46 @@ public class DataSyncService extends Service {
      * @param fileAbsolutePath
      */
     private boolean sendFile(String path, String container, final String name) {
-        boolean ok = true;
         File file = new File(path);
         
-        try {
-            fireNotification(ConstantUtil.PROGRESS, name);
+        fireNotification(ConstantUtil.PROGRESS, name);
             
-            //Swift Upload
-            Swift swift = new Swift(props.getProperty(ConstantUtil.OPENSTACK_URL),
-                    props.getProperty(ConstantUtil.OPENSTACK_USER),
-                    props.getProperty(ConstantUtil.OPENSTACK_KEY));
+        //Swift Upload
+        Swift swift = new Swift(props.getProperty(ConstantUtil.OPENSTACK_URL),
+                props.getProperty(ConstantUtil.OPENSTACK_USER),
+                props.getProperty(ConstantUtil.OPENSTACK_KEY));
             
-            UploadListener listener = new UploadListener() {
-                @Override
-                public void uploadProgress(long bytesUploaded, long totalBytes) {
-                    double percentComplete = 0.0d;
-                    if (bytesUploaded > 0 && totalBytes > 0) {
-                        percentComplete = ((double) bytesUploaded)
-                                / ((double) totalBytes);
-                    }
-                    if (percentComplete > 1.0d) {
-                        percentComplete = 1.0d;
-                    }
-                    fireNotification(ConstantUtil.PROGRESS, 
-                            PCT_FORMAT.format(percentComplete) + " - " + name);
+        UploadListener listener = new UploadListener() {
+            @Override
+            public void uploadProgress(long bytesUploaded, long totalBytes) {
+                double percentComplete = 0.0d;
+                if (bytesUploaded > 0 && totalBytes > 0) {
+                    percentComplete = ((double) bytesUploaded)
+                            / ((double) totalBytes);
                 }
-            };
-            
-            ok = swift.uploadFile(container, name, file, listener);
-
-            if (ok) {
-                fireNotification(ConstantUtil.FILE_COMPLETE, name);
-            } else {
-                Log.e(TAG, "Error uploading file: " + name);
-                fireNotification(ConstantUtil.ERROR, getString(R.string.uploaderror) + " "
-                        + name);
+                if (percentComplete > 1.0d) {
+                    percentComplete = 1.0d;
+                }
+                fireNotification(ConstantUtil.PROGRESS, 
+                        PCT_FORMAT.format(percentComplete) + " - " + name);
             }
-        } catch (Exception e) {
+        };
+            
+        boolean ok = true;
+        try {
+            swift.uploadFile(container, name, file, listener);
+        } catch (IOException e) {
             Log.e(TAG, "Could not send upload " + e.getMessage(), e);
-
             PersistentUncaughtExceptionHandler.recordException(e);
             ok = false;
+        }
+
+        if (ok) {
+            fireNotification(ConstantUtil.FILE_COMPLETE, name);
+        } else {
+            Log.e(TAG, "Error uploading file: " + name);
+            fireNotification(ConstantUtil.ERROR, getString(R.string.uploaderror) + " "
+                    + name);
         }
         return ok;
     }
