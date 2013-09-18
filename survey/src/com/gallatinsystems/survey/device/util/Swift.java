@@ -20,6 +20,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,24 +60,19 @@ public class Swift {
         mPassword = password;
     }
     
-    public void downloadFile(String container, String name, OutputStream outputStream)
+    public boolean downloadFile(String container, String name, String filepath)
             throws IOException {
         Log.i(TAG, "Downloading file: " + name);
-        get(container, name, outputStream);
+        return get(container, name, filepath);
     }
 
     public boolean uploadFile(String container, String name, File file,
-            UploadListener listener){
+            UploadListener listener) throws IOException {
         Log.i(TAG, "Uploading file: " + name);
-        try {
-            return put(container, name, file, listener);
-        } catch (IOException e) {
-            Log.e(TAG, e.getMessage());
-            return false;
-        }
+        return put(container, name, file, listener);
     }
     
-    private boolean get(String container, String name, OutputStream outputStream) 
+    private boolean get(String container, String name, String filepath) 
             throws IOException {
         InputStream in = null;
         OutputStream out = null;
@@ -89,7 +85,7 @@ public class Swift {
             conn.setRequestProperty(Header.AUTH, getAuthHeader());
 
             in = new BufferedInputStream(conn.getInputStream());
-            out = new BufferedOutputStream(outputStream);
+            out = new BufferedOutputStream(new FileOutputStream(filepath));
             
             IOUtil.copyStream(in, out);
 
