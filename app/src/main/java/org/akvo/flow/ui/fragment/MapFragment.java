@@ -49,10 +49,14 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.maps.model.UrlTileProvider;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
 import com.google.maps.android.clustering.view.DefaultClusterRenderer;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,6 +116,8 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
 
     private void configMap() {
         if (mMap != null) {
+            mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
+            mMap.addTileOverlay(new TileOverlayOptions().tileProvider(new OSMTileProvider(256, 256)));
             mMap.setMyLocationEnabled(true);
             mMap.setOnInfoWindowClickListener(this);
             mClusterManager = new ClusterManager<SurveyedLocale>(getActivity(), mMap);
@@ -324,6 +330,27 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
         @Override
         protected void onPostExecute(Void result) {
             mClusterManager.cluster();
+        }
+    }
+
+
+    public class OSMTileProvider extends UrlTileProvider {
+        String OSM_URL = "http://a.tile.openstreetmap.org/%d/%d/%d.png";
+
+        public OSMTileProvider(int width, int height) {
+            super(width, height);
+        }
+
+        @Override
+        public URL getTileUrl(int x, int y, int zoom) {
+            try {
+                String url = String.format(OSM_URL, zoom, x, y);
+                Log.i(TAG, "requesting tile: " + url);
+                return new URL(url);
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+            return null;
         }
     }
 
