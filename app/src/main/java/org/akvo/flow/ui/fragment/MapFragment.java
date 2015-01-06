@@ -17,20 +17,23 @@
 package org.akvo.flow.ui.fragment;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.database.Cursor;
-import android.graphics.Point;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.LoaderManager.LoaderCallbacks;
+import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.mapbox.mapboxsdk.geometry.LatLng;
+import com.mapbox.mapboxsdk.overlay.Icon;
+import com.mapbox.mapboxsdk.overlay.Marker;
+import com.mapbox.mapboxsdk.tileprovider.tilesource.MapboxTileLayer;
+import com.mapbox.mapboxsdk.views.InfoWindow;
+import com.mapbox.mapboxsdk.views.MapView;
 
 import org.akvo.flow.activity.RecordActivity;
 import org.akvo.flow.activity.RecordListActivity;
@@ -38,19 +41,11 @@ import org.akvo.flow.async.loader.SurveyedLocaleLoader;
 import org.akvo.flow.dao.SurveyDbAdapter;
 import org.akvo.flow.domain.SurveyedLocale;
 import org.akvo.flow.util.ConstantUtil;
-import org.osmdroid.DefaultResourceProxyImpl;
-import org.osmdroid.api.IMapView;
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.util.ResourceProxyImpl;
-import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.ItemizedOverlay;
-import org.osmdroid.views.overlay.Overlay;
-import org.osmdroid.views.overlay.OverlayItem;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
+public class MapFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final String TAG = MapFragment.class.getSimpleName();
 
     private long mSurveyGroupId;
@@ -63,7 +58,6 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     private boolean mSingleRecord = false;
 
     private MapView mMapView;
-    private MapOverlay mOverlays;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -98,12 +92,6 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mDatabase = new SurveyDbAdapter(getActivity());
-
-        // Initialize overlays
-        List<Overlay> mapOverlays = mMapView.getOverlays();
-        Drawable drawable = getResources().getDrawable(android.R.drawable.star_big_on);
-        mOverlays = new MapOverlay(drawable, getActivity());
-        mapOverlays.add(mOverlays);
     }
 
     /**
@@ -139,10 +127,12 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                 Bundle savedInstanceState) {
-        ResourceProxyImpl resourceProxy = new ResourceProxyImpl(inflater.getContext().getApplicationContext());
-        mMapView = new MapView(inflater.getContext(), 256, resourceProxy);
-        mMapView.setBuiltInZoomControls(true);
-        mMapView.setMultiTouchControls(true);
+        mMapView = new MapView(getActivity());
+        mMapView.setTileSource(new MapboxTileLayer("examples.map-i87786ca"));
+        mMapView.setMinZoomLevel(mMapView.getTileProvider().getMinimumZoomLevel());
+        mMapView.setMaxZoomLevel(mMapView.getTileProvider().getMaximumZoomLevel());
+        mMapView.setCenter(mMapView.getTileProvider().getCenterCoordinate());
+        mMapView.setZoom(0);
         return mMapView;
     }
 
@@ -159,9 +149,9 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
                         && record.getLongitude() != null) {
                     mItems.clear();
                     mItems.add(record);
-                    GeoPoint point = new GeoPoint(record.getLatitude(), record.getLongitude());
-                    OverlayItem overlayitem = new OverlayItem(record.getDisplayName(getActivity()), record.getId(), point);
-                    mOverlays.addOverlay(overlayitem);
+                    Marker m = new Marker(mMapView, record.getDisplayName(getActivity()), record.getId(), new LatLng(record.getLatitude(), record.getLongitude()));
+                    m.setIcon(new Icon(getActivity(), Icon.Size.SMALL, "marker-stroked", "FF0000"));
+                    mMapView.addMarker(m);
                     centerMap(record);
                 }
             } else {
@@ -189,7 +179,7 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
 
         if (cursor.moveToFirst()) {
             mItems.clear();
-            mOverlays.clear();
+            //mOverlays.clear();
             do {
                 SurveyedLocale item = SurveyDbAdapter.getSurveyedLocale(cursor);
                 if (item.getLatitude() == null || item.getLongitude() == null) {
@@ -197,9 +187,11 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
                 }
 
                 mItems.add(item);
-                GeoPoint point = new GeoPoint(item.getLatitude(), item.getLongitude());
-                OverlayItem overlayitem = new OverlayItem(item.getDisplayName(getActivity()), item.getId(), point);
-                mOverlays.addOverlay(overlayitem);
+
+                Marker m = new CustomMarker(mMapView, item.getDisplayName(getActivity()), item.getId(),
+                        new LatLng(item.getLatitude(), item.getLongitude()), item.getId());
+                m.setIcon(new Icon(getActivity(), Icon.Size.SMALL, "marker-stroked", "FF0000"));
+                mMapView.addMarker(m);
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -209,64 +201,27 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     public void onLoaderReset(Loader<Cursor> loader) {
     }
 
-    class MapOverlay extends ItemizedOverlay {
-        private Context mContext;
-        private ArrayList<OverlayItem> mOverlays = new ArrayList<>();
+    public class CustomMarker extends Marker {
+        String mRecordId;
 
-        MapOverlay(Drawable marker, Context context) {
-            super(marker, new DefaultResourceProxyImpl(context));
-            mContext = context;
+        public CustomMarker(MapView mv, String aTitle, String aDescription, LatLng aLatLng, String recordId){
+            super(mv, aTitle, aDescription, aLatLng);
+            mRecordId = recordId;
         }
 
         @Override
-        protected OverlayItem createItem(int i) {
-            return mOverlays.get(i);
+        protected InfoWindow createTooltip(MapView mv) {
+            InfoWindow w = super.createTooltip(mv);
+            w.getView().setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    mListener.onRecordSelected(mRecordId);
+                    return false;
+                }
+            });
+            return w;
         }
-        @Override
-        public int size() {
-            return mOverlays.size();
-        }
-
-        @Override
-        public boolean onSnapToItem(int x, int y, Point snapPoint, IMapView mapView) {
-            return false;
-        }
-
-        public void addOverlay(OverlayItem overlay) {
-            mOverlays.add(overlay);
-            populate();
-        }
-
-        public void clear() {
-            mOverlays.clear();
-            populate();
-        }
-
-        @Override
-        protected boolean onTap(int index) {
-            OverlayItem item = mOverlays.get(index);
-            final SurveyedLocale locale = mItems.get(index);
-            AlertDialog.Builder dialog = new AlertDialog.Builder(mContext);
-            dialog.setTitle(item.getTitle());
-            dialog.setMessage(item.getSnippet());
-            if (!mSingleRecord) {
-                dialog.setPositiveButton("Open", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mListener.onRecordSelected(locale.getId());
-                    }
-                });
-                dialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                });
-            }
-            dialog.show();
-            return true;
-        }
-
     }
+
 
 }
