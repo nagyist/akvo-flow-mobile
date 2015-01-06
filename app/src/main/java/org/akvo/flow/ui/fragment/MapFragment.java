@@ -17,12 +17,12 @@
 package org.akvo.flow.ui.fragment;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.database.Cursor;
-import android.location.Criteria;
-import android.location.Location;
-import android.location.LocationManager;
-import android.os.AsyncTask;
+import android.graphics.Point;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
@@ -31,17 +31,21 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 
-import org.akvo.flow.R;
 import org.akvo.flow.activity.RecordActivity;
 import org.akvo.flow.activity.RecordListActivity;
 import org.akvo.flow.async.loader.SurveyedLocaleLoader;
 import org.akvo.flow.dao.SurveyDbAdapter;
 import org.akvo.flow.domain.SurveyedLocale;
 import org.akvo.flow.util.ConstantUtil;
+import org.osmdroid.DefaultResourceProxyImpl;
+import org.osmdroid.api.IMapView;
+import org.osmdroid.util.GeoPoint;
 import org.osmdroid.util.ResourceProxyImpl;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.ItemizedOverlay;
+import org.osmdroid.views.overlay.Overlay;
+import org.osmdroid.views.overlay.OverlayItem;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +63,7 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     private boolean mSingleRecord = false;
 
     private MapView mMapView;
+    private MapOverlay mOverlays;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -93,6 +98,12 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mDatabase = new SurveyDbAdapter(getActivity());
+
+        // Initialize overlays
+        List<Overlay> mapOverlays = mMapView.getOverlays();
+        Drawable drawable = getResources().getDrawable(android.R.drawable.star_big_on);
+        mOverlays = new MapOverlay(drawable, getActivity());
+        mapOverlays.add(mOverlays);
     }
 
     /**
@@ -146,7 +157,11 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
                 SurveyedLocale record = mDatabase.getSurveyedLocale(mRecordId);
                 if (mMapView != null && record != null && record.getLatitude() != null
                         && record.getLongitude() != null) {
-                    // TODO
+                    mItems.clear();
+                    mItems.add(record);
+                    GeoPoint point = new GeoPoint(record.getLatitude(), record.getLongitude());
+                    OverlayItem overlayitem = new OverlayItem(record.getDisplayName(getActivity()), record.getId(), point);
+                    mOverlays.addOverlay(overlayitem);
                     centerMap(record);
                 }
             } else {
@@ -174,10 +189,17 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
 
         if (cursor.moveToFirst()) {
             mItems.clear();
+            mOverlays.clear();
             do {
                 SurveyedLocale item = SurveyDbAdapter.getSurveyedLocale(cursor);
-                //mClusterManager.addItem(item);
+                if (item.getLatitude() == null || item.getLongitude() == null) {
+                    continue;
+                }
+
                 mItems.add(item);
+                GeoPoint point = new GeoPoint(item.getLatitude(), item.getLongitude());
+                OverlayItem overlayitem = new OverlayItem(item.getDisplayName(getActivity()), item.getId(), point);
+                mOverlays.addOverlay(overlayitem);
             } while (cursor.moveToNext());
         }
         cursor.close();
@@ -185,6 +207,66 @@ public class MapFragment extends Fragment implements LoaderCallbacks<Cursor> {
 
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
+    }
+
+    class MapOverlay extends ItemizedOverlay {
+        private Context mContext;
+        private ArrayList<OverlayItem> mOverlays = new ArrayList<>();
+
+        MapOverlay(Drawable marker, Context context) {
+            super(marker, new DefaultResourceProxyImpl(context));
+            mContext = context;
+        }
+
+        @Override
+        protected OverlayItem createItem(int i) {
+            return mOverlays.get(i);
+        }
+        @Override
+        public int size() {
+            return mOverlays.size();
+        }
+
+        @Override
+        public boolean onSnapToItem(int x, int y, Point snapPoint, IMapView mapView) {
+            return false;
+        }
+
+        public void addOverlay(OverlayItem overlay) {
+            mOverlays.add(overlay);
+            populate();
+        }
+
+        public void clear() {
+            mOverlays.clear();
+            populate();
+        }
+
+        @Override
+        protected boolean onTap(int index) {
+            OverlayItem item = mOverlays.get(index);
+            final SurveyedLocale locale = mItems.get(index);
+            AlertDialog.Builder dialog = new AlertDialog.Builder(mContext);
+            dialog.setTitle(item.getTitle());
+            dialog.setMessage(item.getSnippet());
+            if (!mSingleRecord) {
+                dialog.setPositiveButton("Open", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mListener.onRecordSelected(locale.getId());
+                    }
+                });
+                dialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+            }
+            dialog.show();
+            return true;
+        }
+
     }
 
 }
