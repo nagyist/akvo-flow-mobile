@@ -49,6 +49,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.maps.model.UrlTileProvider;
 import com.google.maps.android.clustering.Cluster;
@@ -74,6 +75,9 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
 
     private GoogleMap mMap;
     private ClusterManager<SurveyedLocale> mClusterManager;
+
+    MBTileProvider mTileProvider;
+    TileOverlay mTileOverlay;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -116,8 +120,10 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
 
     private void configMap() {
         if (mMap != null) {
+            mTileProvider = new MBTileProvider("examples.map-i87786ca", 256, 256);
+
             mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
-            mMap.addTileOverlay(new TileOverlayOptions().tileProvider(new OSMTileProvider(256, 256)));
+            mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mTileProvider));
             mMap.setMyLocationEnabled(true);
             mMap.setOnInfoWindowClickListener(this);
             mClusterManager = new ClusterManager<SurveyedLocale>(getActivity(), mMap);
@@ -214,6 +220,30 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
         FrameLayout layout = (FrameLayout) v.findViewById(R.id.map_container);
 
         layout.addView(mapView, 0);
+
+        layout.findViewById(R.id.satellite).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mTileProvider.mMapId = "brunosan.map-cyglrrfu";
+                mTileOverlay.clearTileCache();
+            }
+        });
+
+        layout.findViewById(R.id.terrain).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mTileProvider.mMapId = "examples.map-zgrqqx0w";
+                mTileOverlay.clearTileCache();
+            }
+        });
+
+        layout.findViewById(R.id.street).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mTileProvider.mMapId = "examples.map-i87786ca";
+                mTileOverlay.clearTileCache();
+                }
+        });
 
         return v;
     }
@@ -334,17 +364,20 @@ public class MapFragment extends SupportMapFragment implements LoaderCallbacks<C
     }
 
 
-    public class OSMTileProvider extends UrlTileProvider {
-        String OSM_URL = "http://a.tile.openstreetmap.org/%d/%d/%d.png";
+    class MBTileProvider extends UrlTileProvider {
+        String MAPBOX_URL = "http://api.tiles.mapbox.com/v3/%s/%d/%d/%d.png";
 
-        public OSMTileProvider(int width, int height) {
+        String mMapId;
+
+        public MBTileProvider(String mapId, int width, int height) {
             super(width, height);
+            mMapId = mapId;
         }
 
         @Override
         public URL getTileUrl(int x, int y, int zoom) {
             try {
-                String url = String.format(OSM_URL, zoom, x, y);
+                String url = String.format(MAPBOX_URL, mMapId, zoom, x, y);
                 Log.i(TAG, "requesting tile: " + url);
                 return new URL(url);
             } catch (MalformedURLException e) {
