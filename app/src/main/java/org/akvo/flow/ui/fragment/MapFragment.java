@@ -35,6 +35,7 @@ import com.mapbox.mapboxsdk.tileprovider.tilesource.MapboxTileLayer;
 import com.mapbox.mapboxsdk.views.InfoWindow;
 import com.mapbox.mapboxsdk.views.MapView;
 
+import org.akvo.flow.R;
 import org.akvo.flow.activity.RecordActivity;
 import org.akvo.flow.activity.RecordListActivity;
 import org.akvo.flow.async.loader.SurveyedLocaleLoader;
@@ -127,13 +128,36 @@ public class MapFragment extends Fragment implements LoaderManager.LoaderCallbac
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                 Bundle savedInstanceState) {
-        mMapView = new MapView(getActivity());
+        View view = inflater.inflate(R.layout.map_fragment, null);
+        mMapView = (MapView)view.findViewById(R.id.mapview);
         mMapView.setTileSource(new MapboxTileLayer("examples.map-i87786ca"));
         mMapView.setMinZoomLevel(mMapView.getTileProvider().getMinimumZoomLevel());
         mMapView.setMaxZoomLevel(mMapView.getTileProvider().getMaximumZoomLevel());
         mMapView.setCenter(mMapView.getTileProvider().getCenterCoordinate());
         mMapView.setZoom(0);
-        return mMapView;
+
+        view.findViewById(R.id.satellite).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mMapView.setTileSource(new MapboxTileLayer("brunosan.map-cyglrrfu"));
+            }
+        });
+
+        view.findViewById(R.id.terrain).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mMapView.setTileSource(new MapboxTileLayer("examples.map-zgrqqx0w"));
+            }
+        });
+
+        view.findViewById(R.id.street).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mMapView.setTileSource(new MapboxTileLayer("examples.map-i87786ca"));
+            }
+        });
+
+        return view;
     }
 
     /**
