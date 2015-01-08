@@ -49,6 +49,11 @@ import java.util.List;
 public class MapFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final String TAG = MapFragment.class.getSimpleName();
 
+    // Map IDs
+    private static final String MAP_TERRAIN = "akvo.he30g8mm";
+    private static final String MAP_SATELLITE = "akvo.he30neh4";
+    private static final String MAP_STREETS = "akvo.he2pdjhk";
+
     private long mSurveyGroupId;
     private String mRecordId; // If set, load a single record
     private SurveyDbAdapter mDatabase;
@@ -130,7 +135,7 @@ public class MapFragment extends Fragment implements LoaderManager.LoaderCallbac
                 Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.map_fragment, null);
         mMapView = (MapView)view.findViewById(R.id.mapview);
-        mMapView.setTileSource(new MapboxTileLayer("examples.map-i87786ca"));
+        mMapView.setTileSource(new MapboxTileLayer(MAP_STREETS));
         mMapView.setMinZoomLevel(mMapView.getTileProvider().getMinimumZoomLevel());
         mMapView.setMaxZoomLevel(mMapView.getTileProvider().getMaximumZoomLevel());
         mMapView.setCenter(mMapView.getTileProvider().getCenterCoordinate());
@@ -139,21 +144,21 @@ public class MapFragment extends Fragment implements LoaderManager.LoaderCallbac
         view.findViewById(R.id.satellite).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mMapView.setTileSource(new MapboxTileLayer("brunosan.map-cyglrrfu"));
+                mMapView.setTileSource(new MapboxTileLayer(MAP_SATELLITE));
             }
         });
 
         view.findViewById(R.id.terrain).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mMapView.setTileSource(new MapboxTileLayer("examples.map-zgrqqx0w"));
+                mMapView.setTileSource(new MapboxTileLayer(MAP_TERRAIN));
             }
         });
 
         view.findViewById(R.id.street).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mMapView.setTileSource(new MapboxTileLayer("examples.map-i87786ca"));
+                mMapView.setTileSource(new MapboxTileLayer(MAP_STREETS));
             }
         });
 
