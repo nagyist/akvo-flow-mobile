@@ -4,15 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.MobileBy;
 import io.appium.java_client.android.AndroidDriver;
 
 import java.io.File;
 import java.net.URL;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import io.appium.java_client.remote.MobileBrowserType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,8 +17,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 /**
  * Author: Ruarcc McAloon
@@ -57,40 +52,47 @@ public class FieldSurveyTests {
 
     @Test
     public void testActionDisallowedWithoutUserSelected(){
+        //add implicit wait to poll for things loading (e.g. fetching survey)
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+
         WebElement manageUsersButton = driver.findElement(By.id("com.gallatinsystems.survey.device:id/buttonText"));
         assertEquals("Manage Users", manageUsersButton.getText());
 
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Settings')]")).click();
 
+        //Download test form to device
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Download Survey')]")).click();
         driver.findElement(By.className("android.widget.EditText")).sendKeys("12345");
         driver.findElement(By.id("android:id/button1")).click();
         driver.findElement(By.className("android.widget.EditText")).sendKeys("3379117");
         driver.findElement(By.id("android:id/button1")).click();
 
+        //back button
         driver.sendKeyEvent(4);
-
-        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'1.8.0 Final All Questions Forms v. 1.0')]")).click();
 
+        //Confirm that app disallows user from entering a form without user selected
         WebElement warningMessage = driver.findElement(By.id("android:id/message"));
         assertEquals("Please click the Manage Users icon and choose a user before continuing.", warningMessage.getText());
     }
 
     @Test
     public void testAddUserAndSelect(){
-        //check there is not a user currently selected
+        //Check there is not a user currently selected
         assertTrue(driver.findElements(By.id("com.gallatinsystems.survey.device:id/currentUserField")).size()<1);
 
         driver.findElement(By.id("com.gallatinsystems.survey.device:id/buttonText")).click();
 
+        //Menu button
         driver.sendKeyEvent(82);
 
+        //Add a new user
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Add User')]")).click();
         driver.findElement(By.id("com.gallatinsystems.survey.device:id/displayNameField")).sendKeys("LearningIsFun");
         driver.findElement(By.id("com.gallatinsystems.survey.device:id/confirm")).click();
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'LearningIsFun')]")).click();
 
+        //Confirm new user is selected
         WebElement currentUser = driver.findElement(By.id("com.gallatinsystems.survey.device:id/currentUserField"));
         assertEquals("LearningIsFun",currentUser.getText());
     }
