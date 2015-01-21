@@ -5,11 +5,13 @@ import io.appium.java_client.android.AndroidDriver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.openqa.selenium.By;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.io.File;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Author: Ruarcc McAloon
@@ -39,7 +41,22 @@ public class RSRUpTests {
 
     @Test
     public void testChangeEnvironmentAndSubmitUpdate(){
+        //add implicit wait to poll for things loading (e.g. fetching survey)
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
 
+        driver.findElement(By.id("org.akvo.rsr.up:id/link_to_settings")).click();
+        driver.findElement(By.id("android:id/checkbox")).click();
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Data server')]")).click();
+        driver.findElement(By.className("android.widget.EditText")).sendKeys("12345");
+        driver.findElement(By.id("android:id/button1")).click();
+        driver.findElement(By.xpath("//android.widget.EditText[contains(@text,'http://')]")).sendKeys("rsr.akvouat.org");
+        driver.findElement(By.id("android:id/button1")).click();
+
+        driver.sendKeyEvent(4);
+
+        driver.findElement(By.id("org.akvo.rsr.up:id/edit_username")).sendKeys("AutomatedTestUser");
+        driver.findElement(By.id("org.akvo.rsr.up:id/edit_password")).sendKeys("testpassword");
+        driver.findElement(By.id("org.akvo.rsr.up:id/btn_login")).click();
     }
 
     @After
