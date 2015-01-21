@@ -52,8 +52,24 @@ public class FieldSurveyTests {
 
     @Test
     public void testActionDisallowedWithoutUserSelected(){
-        WebElement el = driver.findElement(By.id("com.gallatinsystems.survey.device:id/buttonText"));
-        assertEquals("Manage Users", el.getText());
+        WebElement manageUsersButton = driver.findElement(By.id("com.gallatinsystems.survey.device:id/buttonText"));
+        assertEquals("Manage Users", manageUsersButton.getText());
+
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Settings')]")).click();
+
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Download Survey')]")).click();
+        driver.findElement(By.className("android.widget.EditText")).sendKeys("12345");
+        driver.findElement(By.id("android:id/button1")).click();
+        driver.findElement(By.className("android.widget.EditText")).sendKeys("3379117");
+        driver.findElement(By.id("android:id/button1")).click();
+
+        driver.sendKeyEvent(4);
+
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'1.8.0 Final All Questions Forms')]")).click();
+
+        WebElement warningMessage = driver.findElement(By.id("android:id/message"));
+
+        assertEquals("Please click the Manage Users icon and choose a user before continuing.", warningMessage.getText());
     }
 
     @Test
