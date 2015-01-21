@@ -8,6 +8,7 @@ import io.appium.java_client.android.AndroidDriver;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import io.appium.java_client.remote.MobileBrowserType;
 import org.junit.After;
@@ -17,6 +18,8 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 /**
  * Author: Ruarcc McAloon
@@ -65,7 +68,8 @@ public class FieldSurveyTests {
 
         driver.sendKeyEvent(4);
 
-        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'1.8.0 Final All Questions Forms')]")).click();
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'1.8.0 Final All Questions Forms v. 1.0')]")).click();
 
         WebElement warningMessage = driver.findElement(By.id("android:id/message"));
 
