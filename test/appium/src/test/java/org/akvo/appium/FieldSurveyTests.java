@@ -1,6 +1,8 @@
 package org.akvo.appium;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileBy;
 import io.appium.java_client.android.AndroidDriver;
@@ -72,13 +74,25 @@ public class FieldSurveyTests {
         driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'1.8.0 Final All Questions Forms v. 1.0')]")).click();
 
         WebElement warningMessage = driver.findElement(By.id("android:id/message"));
-
         assertEquals("Please click the Manage Users icon and choose a user before continuing.", warningMessage.getText());
     }
 
     @Test
     public void testAddUserAndSelect(){
+        //check there is not a user currently selected
+        assertTrue(driver.findElements(By.id("com.gallatinsystems.survey.device:id/currentUserField")).size()<1);
 
+        driver.findElement(By.id("com.gallatinsystems.survey.device:id/buttonText")).click();
+
+        driver.sendKeyEvent(82);
+
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'Add User')]")).click();
+        driver.findElement(By.id("com.gallatinsystems.survey.device:id/displayNameField")).sendKeys("LearningIsFun");
+        driver.findElement(By.id("com.gallatinsystems.survey.device:id/confirm")).click();
+        driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'LearningIsFun')]")).click();
+
+        WebElement currentUser = driver.findElement(By.id("com.gallatinsystems.survey.device:id/currentUserField"));
+        assertEquals("LearningIsFun",currentUser.getText());
     }
 
     @After
