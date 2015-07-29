@@ -24,6 +24,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.joshdholtz.sentry.Sentry;
+
 import org.akvo.flow.R;
 import org.akvo.flow.dao.SurveyDbAdapter;
 import org.akvo.flow.dao.SurveyDbAdapter.UserColumns;
@@ -88,6 +90,10 @@ public class FlowApp extends Application {
 
         loadLastUser();
         mSurveyChecker.run();// Ensure surveys have put their languages
+
+        // Analytics
+        Sentry.init(this, "http://sentry.support.akvo-ops.org/", "http://d3cc86780ecd410a86d941359bda1e75:79eac26c11d34e25b505dbba0bf341fb@sentry.support.akvo-ops.org/14");
+        Sentry.captureException(new RuntimeException("Hello I'm a runtime exception"));
     }
     
     public void setUser(User user) {
