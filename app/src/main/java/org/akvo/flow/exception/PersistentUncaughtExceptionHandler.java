@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2014 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2015 Stichting Akvo (Akvo Foundation)
  *
  *  This file is part of Akvo FLOW.
  *
@@ -26,11 +26,17 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
+import android.content.Context;
 import android.util.Log;
+
+import com.joshdholtz.sentry.Sentry;
+import com.joshdholtz.sentry.Sentry.SentryEventBuilder;
 
 import org.akvo.flow.util.ConstantUtil;
 import org.akvo.flow.util.FileUtil;
 import org.akvo.flow.util.FileUtil.FileType;
+import org.akvo.flow.util.PropertyUtil;
+import org.json.JSONException;
 
 /**
  * This exception handler will log all exceptions it handles to the filesystem
@@ -43,7 +49,7 @@ import org.akvo.flow.util.FileUtil.FileType;
  */
 public class PersistentUncaughtExceptionHandler implements
         UncaughtExceptionHandler {
-    private static final String TAG = "UNCAUGHT_EXCEPTION_HANDLER";
+    private static final String TAG = "EXCEPTION_HANDLER";
     private static PersistentUncaughtExceptionHandler instance;
 
     private UncaughtExceptionHandler oldHandler;
@@ -66,6 +72,29 @@ public class PersistentUncaughtExceptionHandler implements
         }
 
     }
+
+    public static void setup(Context context) {
+        final PropertyUtil props = new PropertyUtil(context.getResources());
+
+        // Sets a listener to intercept the SentryEventBuilder before
+        // each capture to set values that could change state
+        Sentry.setCaptureListener(new Sentry.SentryEventCaptureListener() {
+
+            @Override
+            public SentryEventBuilder beforeCapture(SentryEventBuilder builder) {
+                try {
+                    builder.getTags().put("appId", props.getProperty(ConstantUtil.S3_BUCKET));
+                } catch (JSONException e) {}
+
+                return builder;
+            }
+        });
+
+        Sentry.init(context, props.getProperty(ConstantUtil.SENTRY_URL),
+                props.getProperty(ConstantUtil.SENTRY_DSN));
+        Thread.setDefaultUncaughtExceptionHandler(getInstance());
+    }
+
 
     /**
      * saves the exception to the filesystem. Processing will then be delegated
@@ -114,6 +143,9 @@ public class PersistentUncaughtExceptionHandler implements
      */
     public static void recordException(Throwable exception) {
         if (!ignoreException(exception)) {
+            // Record exception in Sentry
+            Sentry.captureException(exception);
+
             // save the error
             final Writer result = new StringWriter();
             final PrintWriter printWriter = new PrintWriter(result);
