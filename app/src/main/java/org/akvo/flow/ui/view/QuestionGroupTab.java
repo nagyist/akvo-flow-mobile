@@ -114,15 +114,6 @@ public class QuestionGroupTab extends LinearLayout implements RepetitionHeader.O
         }
     }
 
-    /**
-     * Pre-load all the QuestionViews in memory. getView() will simply
-     * retrieve them from the corresponding position in mQuestionViews.
-     */
-    public void load() {
-        mLoaded = true;
-        loadGroup();
-    }
-
     public void notifyOptionsChanged() {
         for (QuestionView qv : mQuestionViews.values()) {
             qv.notifyOptionsChanged();
@@ -151,24 +142,26 @@ public class QuestionGroupTab extends LinearLayout implements RepetitionHeader.O
         return missingQuestions;
     }
 
-    public void loadState() {
-        for (QuestionView qv : mQuestionViews.values()) {
-            qv.resetQuestion(false);// Clean start
-        }
+    /**
+     * Pre-load all the QuestionViews in memory. getView() will simply
+     * retrieve them from the corresponding position in mQuestionViews.
+     */
+    public void load() {
+        mLoaded = true;
 
-        // FIXME: Call loadGroup here, remove original one
+        // Clean start
+        mContainer.removeAllViews();
+        mQuestionViews.clear();
 
-        // If the group is repeatable, delete multiple iterations
         if (mQuestionGroup.isRepeatable()) {
-            mContainer.removeAllViews();
-            mQuestionViews.clear();
-
             // Load existing iterations. If no iteration is available, show one by default.
             mRepetitions.loadIDs();
             int iterCount = Math.max(mRepetitions.size(), 1);
             for (int i=0; i<iterCount; i++) {
                 loadGroup(i);
             }
+        } else {
+            loadGroup();
         }
 
         Map<String, QuestionResponse> responses = mSurveyListener.getResponses();
