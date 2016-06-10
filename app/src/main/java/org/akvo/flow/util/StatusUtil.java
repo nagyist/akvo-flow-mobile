@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2015 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2016 Stichting Akvo (Akvo Foundation)
  *
  *  This file is part of Akvo FLOW.
  *
@@ -19,8 +19,6 @@ package org.akvo.flow.util;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -71,44 +69,18 @@ public class StatusUtil {
 
     /**
      * gets the device's primary phone number
-     * 
-     * @return
      */
     public static String getPhoneNumber(Context context) {
-        TelephonyManager teleMgr = (TelephonyManager) context
-                .getSystemService(Context.TELEPHONY_SERVICE);
+        TelephonyManager teleMgr = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         String number = null;
         if (teleMgr != null) {
-            // On a GSM device, this will only work if the provider put the
-            // number on the SIM card
+            // On a GSM device, this will only work if the provider put the number on the SIM card
             number = teleMgr.getLine1Number();
         }
         if (number == null || number.trim().length() == 0
                 || number.trim().equalsIgnoreCase("null")
                 || number.trim().equalsIgnoreCase("unknown")) {
-            // if we can't get the phone number, use the MAC instead
-            WifiManager wifiMgr = (WifiManager) context
-                    .getSystemService(Context.WIFI_SERVICE);
-            if (wifiMgr != null) {
-                // presumably if we don't have a cell connection, then we must
-                // be connected by WIFI so this should work
-                WifiInfo info = wifiMgr.getConnectionInfo();
-                if (info != null) {
-                    number = info.getMacAddress();
-                }
-            }
-        }
-        // handle the case where we don't have a phone number OR a
-        // WIFI connection (could be offline, using Bluetooth or cable
-        // connection)
-        if (number == null || number.trim().length() == 0) {
-            number = teleMgr.getDeviceId(); // IMEI on a GSM device
-        } else {
-            number = number.trim(); // sometimes numbers are reported w leading
-                                    // space
-            if (number.startsWith("+"))
-                number = number.substring(1); // sometimes the + prefix can
-                                              // appear and disappear
+            return "";
         }
         return number;
     }
