@@ -23,7 +23,9 @@ import android.database.SQLException;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
-
+import com.squareup.leakcanary.LeakCanary;
+import java.util.Arrays;
+import java.util.Locale;
 import org.akvo.flow.R;
 import org.akvo.flow.dao.SurveyDbAdapter;
 import org.akvo.flow.dao.SurveyDbAdapter.UserColumns;
@@ -33,9 +35,6 @@ import org.akvo.flow.domain.User;
 import org.akvo.flow.util.ConstantUtil;
 import org.akvo.flow.util.LangsPreferenceUtil;
 import org.akvo.flow.util.Prefs;
-
-import java.util.Arrays;
-import java.util.Locale;
 
 public class FlowApp extends Application {
     private static final String TAG = FlowApp.class.getSimpleName();
@@ -48,8 +47,18 @@ public class FlowApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        initLeakCanary();
         init();
         app = this;
+    }
+
+    private void initLeakCanary() {
+        if (LeakCanary.isInAnalyzerProcess(this)) {
+            // This process is dedicated to LeakCanary for heap analysis.
+            // You should not init your app in this process.
+            return;
+        }
+        LeakCanary.install(this);
     }
 
     public static FlowApp getApp() {
