@@ -41,6 +41,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,9 @@ public class SettingsActivity extends BackActivity implements AdapterView.OnItem
     private static final String TAG = "SettingsActivity";
     private static final String LABEL = "label";
     private static final String DESC = "desc";
+
+    //TODO: this will be replaced by a year placed in a properties file
+    private static final String CURRENT_YEAR = "2017";
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -283,7 +287,7 @@ public class SettingsActivity extends BackActivity implements AdapterView.OnItem
 
     private void onAboutOptionTap(Resources resources) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        String txt = resources.getString(R.string.abouttext) + " " + PlatformUtil.getVersionName(this);
+        String txt = resources.getString(R.string.about_text, CURRENT_YEAR, PlatformUtil.getVersionName(this));
         builder.setTitle(R.string.abouttitle);
         builder.setMessage(txt);
         builder.setPositiveButton(R.string.okbutton, new DialogInterface.OnClickListener() {
