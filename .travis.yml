@@ -1,9 +1,12 @@
 language: android
 
+jdk:
+  - oraclejdk8 # until openjdk8 is available
+
 android:
   components:
-    - build-tools-21.1.2
-    - android-21
+    - build-tools-25.0.1
+    - android-25
     - extra-google-google_play_services
     - extra-google-m2repository
     - extra-android-m2repository
