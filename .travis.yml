@@ -5,6 +5,9 @@ jdk:
 
 android:
   components:
+    - tools # see https://github.com/travis-ci/travis-ci/issues/6040#issuecomment-219367943
+    - tools # yes, twice
+    - platform-tools
     - build-tools-25.0.1
     - android-25
     - extra-google-google_play_services
