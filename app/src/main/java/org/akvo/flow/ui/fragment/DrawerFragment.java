@@ -18,11 +18,13 @@ package org.akvo.flow.ui.fragment;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
@@ -44,19 +46,24 @@ import android.widget.Toast;
 import org.akvo.flow.R;
 import org.akvo.flow.activity.SettingsActivity;
 import org.akvo.flow.app.FlowApp;
+import org.akvo.flow.data.database.SurveyDbAdapter;
 import org.akvo.flow.data.loader.SurveyGroupLoader;
 import org.akvo.flow.data.loader.UserLoader;
-import org.akvo.flow.data.database.SurveyDbAdapter;
-import org.akvo.flow.data.database.UserColumns;
 import org.akvo.flow.domain.SurveyGroup;
 import org.akvo.flow.domain.User;
 import org.akvo.flow.util.PlatformUtil;
 import org.akvo.flow.util.ViewUtil;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class DrawerFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
+import static org.akvo.flow.R.string.surveys;
+
+public class DrawerFragment extends Fragment implements ExpandableListView.OnChildClickListener,
+        ExpandableListView.OnGroupClickListener {
+
     private static final float ITEM_TEXT_SIZE = 14;
 
     // Context menu IDs
@@ -73,20 +80,11 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
     private static final int LOADER_SURVEYS = 0;
     private static final int LOADER_USERS = 1;
 
-    public interface DrawerListener {
-        void onSurveySelected(SurveyGroup surveyGroup);
-
-        void onUserSelected(User user);
-    }
-
     private ExpandableListView mListView;
     private DrawerAdapter mAdapter;
 
     private SurveyDbAdapter mDatabase;
     private DrawerListener mListener;
-
-    private List<User> mUsers = new ArrayList<>();
-    private List<SurveyGroup> mSurveys = new ArrayList<>();
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -106,11 +104,11 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
             mDatabase.open();
         }
         if (mAdapter == null) {
-            mAdapter = new DrawerAdapter();
+            mAdapter = new DrawerAdapter(getActivity());
             mListView.setAdapter(mAdapter);
             mListView.expandGroup(GROUP_SURVEYS);
-            mListView.setOnGroupClickListener(mAdapter);
-            mListView.setOnChildClickListener(mAdapter);
+            mListView.setOnGroupClickListener(this);
+            mListView.setOnChildClickListener(this);
             registerForContextMenu(mListView);
         }
     }
@@ -149,65 +147,12 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
             return;
         }
         LoaderManager loaderManager = getLoaderManager();
-        loaderManager.restartLoader(LOADER_SURVEYS, null, this);
-        loaderManager.restartLoader(LOADER_USERS, null, this);
+        loaderManager.restartLoader(LOADER_SURVEYS, null, new SurveyGroupLoaderCallback(this));
+        loaderManager.restartLoader(LOADER_USERS, null, new UserLoaderCallback(this));
     }
 
     public void onDrawerClosed() {
         mListView.collapseGroup(GROUP_USERS);
-    }
-
-    @Override
-    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-        switch (id) {
-            case LOADER_SURVEYS:
-                return new SurveyGroupLoader(getActivity(), mDatabase);
-            case LOADER_USERS:
-                return new UserLoader(getActivity(), mDatabase);
-        }
-        return null;
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
-        switch (loader.getId()) {
-            case LOADER_SURVEYS:
-                if (cursor != null) {
-                    mSurveys.clear();
-                    if (cursor.moveToFirst()) {
-                        do {
-                            mSurveys.add(SurveyDbAdapter.getSurveyGroup(cursor));
-                        } while (cursor.moveToNext());
-                        cursor.close();
-                    }
-                    mAdapter.notifyDataSetInvalidated();
-                }
-                break;
-            case LOADER_USERS:
-                if (cursor != null) {
-                    mUsers.clear();
-                    if (cursor.moveToFirst()) {
-                        do {
-                            long id = cursor.getLong(
-                                    cursor.getColumnIndexOrThrow(UserColumns._ID));
-                            String name = cursor.getString(
-                                    cursor.getColumnIndexOrThrow(UserColumns.NAME));
-                            User user = new User(id, name);
-                            // Skip selected user
-                            if (!user.equals(FlowApp.getApp().getUser())) {
-                                mUsers.add(new User(id, name));
-                            }
-                        } while (cursor.moveToNext());
-                        cursor.close();
-                    }
-                    mAdapter.notifyDataSetInvalidated();
-                }
-                break;
-        }
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {
     }
 
     private void addUser() {
@@ -269,17 +214,20 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
     }
 
     private SurveyGroup getSurveyForContextMenu(int type, int group, int child) {
+        List<SurveyGroup> surveyGroups =
+                mAdapter == null ? Collections.EMPTY_LIST : mAdapter.getSurveyGroups();
         if (group == GROUP_SURVEYS && type == ExpandableListView.PACKED_POSITION_TYPE_CHILD
-                && child < mSurveys.size()) {
-            return mSurveys.get(child);
+                && child < surveyGroups.size()) {
+            return surveyGroups.get(child);
         }
         return null;
     }
 
     private User getUserForContextMenu(int type, int group, int child) {
+        List<User> users = mAdapter == null ? Collections.EMPTY_LIST : mAdapter.getUsers();
         if (group == GROUP_USERS) {
-            if (type == ExpandableListView.PACKED_POSITION_TYPE_CHILD && child < mUsers.size()) {
-                return mUsers.get(child);
+            if (type == ExpandableListView.PACKED_POSITION_TYPE_CHILD && child < users.size()) {
+                return users.get(child);
             } else if (type == ExpandableListView.PACKED_POSITION_TYPE_GROUP) {
                 return FlowApp.getApp().getUser();
             }
@@ -377,17 +325,82 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
         return false;
     }
 
-    class DrawerAdapter extends BaseExpandableListAdapter implements
-            ExpandableListView.OnGroupClickListener, ExpandableListView.OnChildClickListener {
-        LayoutInflater mInflater;
+    private void updateUsers(List<User> users) {
+        if (mAdapter != null) {
+            mAdapter.updateUsers(users);
+        }
+    }
 
-        int mHighlightColor;
+    private void updateSurveys(List<SurveyGroup> surveyGroups) {
+        if (mAdapter != null) {
+            mAdapter.updateSurveys(surveyGroups);
+        }
+    }
 
-        public DrawerAdapter() {
-            mInflater = LayoutInflater.from(getActivity());
-            mUsers = new ArrayList<>();
-            mSurveys = new ArrayList<>();
-            mHighlightColor = PlatformUtil.getResource(getActivity(), R.attr.textColorSecondary);
+    @Override
+    public boolean onGroupClick(ExpandableListView parent, View v, int groupPosition, long id) {
+        switch (groupPosition) {
+            case GROUP_SURVEYS:
+                return true; // This way the expander cannot be collapsed
+            case GROUP_SETTINGS:
+                startActivity(new Intent(getActivity(), SettingsActivity.class));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    public boolean onChildClick(ExpandableListView parent, View v, int groupPosition,
+            int childPosition, long id) {
+        switch (groupPosition) {
+            case GROUP_USERS:
+                User user = (User) v.getTag();
+                if (user.getId() == -1) {
+                    addUser();
+                } else {
+                    mListener.onUserSelected(user);
+                }
+                return true;
+            case GROUP_SURVEYS:
+                SurveyGroup sg = (SurveyGroup) v.getTag();
+                mListener.onSurveySelected(sg);
+                return true;
+        }
+        return false;
+    }
+
+    static class DrawerAdapter extends BaseExpandableListAdapter {
+
+        private static final int SURVEY_MINIMUM_HEIGHT_DP = 3;
+        private static final int LEFT_PADDING_DP = 30;
+        private static final int SETTINGS_MINIMUM_HEIGHT_DP = 1;
+
+        private final LayoutInflater mInflater;
+        private final List<User> mUsers;
+        private final List<SurveyGroup> mSurveys;
+        private final int surveyMinimumHeight;
+        private final int leftPadding;
+        private final int settingsMinimumHeight;
+        private final int surveyGroupTextColor;
+        private final ColorStateList selectedSurveyTextColor;
+        private final int selectedSurveyBackgroundColor;
+
+        DrawerAdapter(Context context) {
+            this.mInflater = LayoutInflater.from(context);
+            this.mUsers = new ArrayList<>();
+            this.mSurveys = new ArrayList<>();
+            this.surveyMinimumHeight = (int) PlatformUtil.dp2Pixel(context,
+                    SURVEY_MINIMUM_HEIGHT_DP);
+            this.leftPadding = (int) PlatformUtil.dp2Pixel(context, LEFT_PADDING_DP);
+            this.settingsMinimumHeight = (int) PlatformUtil.dp2Pixel(context,
+                    SETTINGS_MINIMUM_HEIGHT_DP);
+            this.surveyGroupTextColor = context.getResources().getColor(R.color.black_disabled);
+            int mHighlightColor = PlatformUtil.getResource(context, R.attr.textColorSecondary);
+            this.selectedSurveyTextColor = context.getResources()
+                    .getColorStateList(mHighlightColor);
+            this.selectedSurveyBackgroundColor = context.getResources()
+                    .getColor(R.color.background_alternate);
         }
 
         @Override
@@ -403,7 +416,7 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                 case GROUP_SURVEYS:
                     return mSurveys.size();
                 default:
-                    return 0;
+                    return GROUP_USERS;
             }
         }
 
@@ -437,7 +450,7 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                 ViewGroup parent) {
             View v = convertView;
             if (v == null) {
-                v = mInflater.inflate(R.layout.drawer_item, null);
+                v = mInflater.inflate(R.layout.drawer_item, parent, false);
             }
             View divider = v.findViewById(R.id.divider);
             TextView tv = (TextView) v.findViewById(R.id.item_txt);
@@ -449,7 +462,9 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                     divider.setMinimumHeight(0);
 
                     User u = FlowApp.getApp().getUser();
-                    String username = u != null ? u.getName() : getString(R.string.select_user);
+                    String username = u != null ?
+                            u.getName() :
+                            tv.getResources().getString(R.string.select_user);
                     tv.setTextSize(ITEM_TEXT_SIZE);
                     tv.setTextColor(Color.BLACK);
                     tv.setText(username);
@@ -462,18 +477,18 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                     dropdown.setVisibility(View.VISIBLE);
                     break;
                 case GROUP_SURVEYS:
-                    divider.setMinimumHeight((int) PlatformUtil.dp2Pixel(getActivity(), 3));
+                    divider.setMinimumHeight(surveyMinimumHeight);
                     tv.setTextSize(ITEM_TEXT_SIZE);
-                    tv.setTextColor(getResources().getColor(R.color.black_disabled));
-                    tv.setText(R.string.surveys);
+                    tv.setTextColor(surveyGroupTextColor);
+                    tv.setText(surveys);
                     img.setVisibility(View.GONE);
                     dropdown.setVisibility(View.GONE);
                     break;
                 case GROUP_SETTINGS:
-                    divider.setMinimumHeight((int) PlatformUtil.dp2Pixel(getActivity(), 1));
+                    divider.setMinimumHeight(settingsMinimumHeight);
                     tv.setTextSize(ITEM_TEXT_SIZE);
                     tv.setTextColor(Color.BLACK);
-                    tv.setText(getString(R.string.settingslabel));
+                    tv.setText(R.string.settingslabel);
                     img.setVisibility(View.GONE);
                     dropdown.setVisibility(View.GONE);
                     break;
@@ -490,7 +505,7 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                 v = mInflater.inflate(android.R.layout.simple_list_item_1, null);
             }
             TextView tv = (TextView) v.findViewById(android.R.id.text1);
-            v.setPadding((int) PlatformUtil.dp2Pixel(getActivity(), 30), 0, 0, 0);
+            v.setPadding(leftPadding, 0, 0, 0);
 
             tv.setTextSize(ITEM_TEXT_SIZE);
             tv.setTextColor(Color.BLACK);
@@ -499,7 +514,7 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
             switch (groupPosition) {
                 case GROUP_USERS:
                     User user = isLastChild ?
-                            new User(-1, getString(R.string.new_user)) :
+                            new User(-1, tv.getResources().getString(R.string.new_user)) :
                             mUsers.get(childPosition);
                     tv.setText(user.getName());
                     v.setTag(user);
@@ -508,8 +523,8 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
                     SurveyGroup sg = mSurveys.get(childPosition);
                     tv.setText(sg.getName());
                     if (sg.getId() == FlowApp.getApp().getSurveyGroupId()) {
-                        tv.setTextColor(getResources().getColorStateList(mHighlightColor));
-                        v.setBackgroundColor(getResources().getColor(R.color.background_alternate));
+                        tv.setTextColor(selectedSurveyTextColor);
+                        v.setBackgroundColor(selectedSurveyBackgroundColor);
                     }
                     v.setTag(sg);
                     break;
@@ -523,38 +538,101 @@ public class DrawerFragment extends Fragment implements LoaderManager.LoaderCall
             return groupPosition == GROUP_USERS || groupPosition == GROUP_SURVEYS;
         }
 
+        public void updateUsers(@NonNull List<User> users) {
+            mUsers.clear();
+            mUsers.addAll(users);
+            notifyDataSetChanged();
+        }
+
+        public List<SurveyGroup> getSurveyGroups() {
+            return mSurveys;
+        }
+
+        public List<User> getUsers() {
+            return mUsers;
+        }
+
+        public void updateSurveys(@NonNull List<SurveyGroup> surveyGroups) {
+            mSurveys.clear();
+            mSurveys.addAll(surveyGroups);
+            notifyDataSetChanged();
+        }
+    }
+
+    private static class UserLoaderCallback implements LoaderManager.LoaderCallbacks<List<User>> {
+
+        private final WeakReference<DrawerFragment> fragmentWeakReference;
+
+        private UserLoaderCallback(DrawerFragment drawerFragment) {
+            this.fragmentWeakReference = new WeakReference<>(drawerFragment);
+        }
+
         @Override
-        public boolean onGroupClick(ExpandableListView parent, View v, int groupPosition, long id) {
-            switch (groupPosition) {
-                case GROUP_SURVEYS:
-                    return true; // This way the expander cannot be collapsed
-                case GROUP_SETTINGS:
-                    startActivity(new Intent(getActivity(), SettingsActivity.class));
-                    return true;
-                default:
-                    return false;
+        public Loader<List<User>> onCreateLoader(int id, Bundle args) {
+            DrawerFragment drawerFragment = fragmentWeakReference.get();
+            Context context = drawerFragment == null ? null : drawerFragment.getActivity();
+            if (context != null) {
+                return new UserLoader(context);
+            } else {
+                //context is null so activity is probably being destroyed
+                return null;
+            }
+
+        }
+
+        @Override
+        public void onLoadFinished(Loader<List<User>> loader, List<User> data) {
+            DrawerFragment drawerFragment = fragmentWeakReference.get();
+            if (drawerFragment != null) {
+                drawerFragment.updateUsers(data);
             }
         }
 
         @Override
-        public boolean onChildClick(ExpandableListView parent, View v, int groupPosition,
-                int childPosition, long id) {
-            switch (groupPosition) {
-                case GROUP_USERS:
-                    User user = (User) v.getTag();
-                    if (user.getId() == -1) {
-                        addUser();
-                    } else {
-                        mListener.onUserSelected(user);
-                    }
-                    return true;
-                case GROUP_SURVEYS:
-                    SurveyGroup sg = (SurveyGroup) v.getTag();
-                    mListener.onSurveySelected(sg);
-                    return true;
-            }
-            return false;
+        public void onLoaderReset(Loader<List<User>> loader) {
+            // EMPTY
         }
+    }
+
+    private static class SurveyGroupLoaderCallback implements LoaderManager.LoaderCallbacks<List<SurveyGroup>> {
+
+        private final WeakReference<DrawerFragment> fragmentWeakReference;
+
+        private SurveyGroupLoaderCallback(DrawerFragment drawerFragment) {
+            this.fragmentWeakReference = new WeakReference<>(drawerFragment);
+        }
+
+        @Override
+        public Loader<List<SurveyGroup>> onCreateLoader(int id, Bundle args) {
+            DrawerFragment drawerFragment = fragmentWeakReference.get();
+            Context context = drawerFragment == null ? null : drawerFragment.getActivity();
+            if (context != null) {
+                return new SurveyGroupLoader(context);
+            } else {
+                //context is null so activity is probably being destroyed
+                return null;
+            }
+        }
+
+        @Override
+        public void onLoadFinished(Loader<List<SurveyGroup>> loader, List<SurveyGroup> data) {
+            DrawerFragment drawerFragment = fragmentWeakReference.get();
+            if (drawerFragment != null) {
+                drawerFragment.updateSurveys(data);
+            }
+        }
+
+        @Override
+        public void onLoaderReset(Loader<List<SurveyGroup>> loader) {
+            // EMPTY
+        }
+    }
+
+    public interface DrawerListener {
+
+        void onSurveySelected(SurveyGroup surveyGroup);
+
+        void onUserSelected(User user);
     }
 
 }

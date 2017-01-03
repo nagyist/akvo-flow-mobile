@@ -165,7 +165,7 @@ public class SurveyDbAdapter {
                 new String[] { String.valueOf(surveyInstanceId) });
 
         if (rows < 1) {
-            Timber.e("Could not update status for Survey Instance: " + surveyInstanceId);
+            Timber.e("Could not update status for Survey Instance: %d", surveyInstanceId);
         }
     }
 
@@ -428,7 +428,7 @@ public class SurveyDbAdapter {
                 new String[] {
                         surveyId
                 }) < 1) {
-            Timber.e("Could not update record for Survey " + surveyId);
+            Timber.e("Could not update record for Survey %s", surveyId);
         }
     }
 
@@ -841,7 +841,7 @@ public class SurveyDbAdapter {
         database.insert(Tables.SURVEY_GROUP, null, values);
     }
 
-    public static SurveyGroup getSurveyGroup(Cursor cursor) {
+    public SurveyGroup getSurveyGroup(Cursor cursor) {
         long id = cursor.getLong(cursor.getColumnIndexOrThrow(SurveyGroupColumns.SURVEY_GROUP_ID));
         String name = cursor.getString(cursor.getColumnIndexOrThrow(SurveyGroupColumns.NAME));
         String registerSurveyId = cursor

@@ -18,19 +18,35 @@ package org.akvo.flow.data.loader;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.support.annotation.NonNull;
 
-import org.akvo.flow.data.loader.base.DataLoader;
 import org.akvo.flow.data.database.SurveyDbAdapter;
+import org.akvo.flow.data.loader.base.AsyncLoader;
+import org.akvo.flow.domain.SurveyGroup;
 
-public class SurveyGroupLoader extends DataLoader<Cursor> {
+import java.util.ArrayList;
+import java.util.List;
 
-    public SurveyGroupLoader(Context context, SurveyDbAdapter db) {
-        super(context, db);
+public class SurveyGroupLoader extends AsyncLoader<List<SurveyGroup>> {
+
+    public SurveyGroupLoader(Context context) {
+        super(context);
     }
 
+    @NonNull
     @Override
-    protected Cursor loadData(SurveyDbAdapter database) {
-        return database.getSurveyGroups();
+    public List<SurveyGroup> loadInBackground() {
+        List<SurveyGroup> surveyGroups = new ArrayList<>();
+        SurveyDbAdapter database = new SurveyDbAdapter(getContext());
+        database.open();
+        Cursor cursor = database.getSurveyGroups();
+        if (cursor.moveToFirst()) {
+            do {
+                surveyGroups.add(database.getSurveyGroup(cursor));
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+        database.close();
+        return surveyGroups;
     }
-
 }
