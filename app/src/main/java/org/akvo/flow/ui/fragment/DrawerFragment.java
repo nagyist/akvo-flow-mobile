@@ -383,9 +383,9 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
             this.mUsers = new ArrayList<>();
             this.mSurveys = new ArrayList<>();
             this.leftPadding = (int) PlatformUtil.dp2Pixel(context, LEFT_PADDING_DP);
-            int mHighlightColor = PlatformUtil.getResource(context, R.attr.textColorSecondary);
+            int highlightColor = PlatformUtil.getResource(context, R.attr.textColorSecondary);
             this.selectedSurveyTextColor = context.getResources()
-                    .getColorStateList(mHighlightColor);
+                    .getColorStateList(highlightColor);
             this.selectedSurveyBackgroundColor = context.getResources()
                     .getColor(R.color.background_alternate);
         }
