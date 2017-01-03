@@ -59,8 +59,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.akvo.flow.R.string.surveys;
-
 public class DrawerFragment extends Fragment implements ExpandableListView.OnChildClickListener,
         ExpandableListView.OnGroupClickListener {
 
@@ -480,7 +478,7 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
                     divider.setMinimumHeight(surveyMinimumHeight);
                     tv.setTextSize(ITEM_TEXT_SIZE);
                     tv.setTextColor(surveyGroupTextColor);
-                    tv.setText(surveys);
+                    tv.setText(R.string.surveys);
                     img.setVisibility(View.GONE);
                     dropdown.setVisibility(View.GONE);
                     break;
