@@ -370,17 +370,11 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
 
     static class DrawerAdapter extends BaseExpandableListAdapter {
 
-        private static final int SURVEY_MINIMUM_HEIGHT_DP = 3;
         private static final int LEFT_PADDING_DP = 30;
-        private static final int SETTINGS_MINIMUM_HEIGHT_DP = 1;
-
         private final LayoutInflater mInflater;
         private final List<User> mUsers;
         private final List<SurveyGroup> mSurveys;
-        private final int surveyMinimumHeight;
         private final int leftPadding;
-        private final int settingsMinimumHeight;
-        private final int surveyGroupTextColor;
         private final ColorStateList selectedSurveyTextColor;
         private final int selectedSurveyBackgroundColor;
 
@@ -388,12 +382,7 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
             this.mInflater = LayoutInflater.from(context);
             this.mUsers = new ArrayList<>();
             this.mSurveys = new ArrayList<>();
-            this.surveyMinimumHeight = (int) PlatformUtil.dp2Pixel(context,
-                    SURVEY_MINIMUM_HEIGHT_DP);
             this.leftPadding = (int) PlatformUtil.dp2Pixel(context, LEFT_PADDING_DP);
-            this.settingsMinimumHeight = (int) PlatformUtil.dp2Pixel(context,
-                    SETTINGS_MINIMUM_HEIGHT_DP);
-            this.surveyGroupTextColor = context.getResources().getColor(R.color.black_disabled);
             int mHighlightColor = PlatformUtil.getResource(context, R.attr.textColorSecondary);
             this.selectedSurveyTextColor = context.getResources()
                     .getColorStateList(mHighlightColor);
@@ -444,51 +433,45 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
         }
 
         @Override
+        public int getGroupType(int groupPosition) {
+            return groupPosition;
+        }
+
+        @Override
+        public int getGroupTypeCount() {
+            return 3;
+        }
+
+        @Override
         public View getGroupView(int groupPosition, boolean isExpanded, View convertView,
                 ViewGroup parent) {
             View v = convertView;
-            if (v == null) {
-                v = mInflater.inflate(R.layout.drawer_item, parent, false);
-            }
-            View divider = v.findViewById(R.id.divider);
-            TextView tv = (TextView) v.findViewById(R.id.item_txt);
-            ImageView img = (ImageView) v.findViewById(R.id.item_img);
-            ImageView dropdown = (ImageView) v.findViewById(R.id.dropdown);
-
             switch (groupPosition) {
                 case GROUP_USERS:
-                    divider.setMinimumHeight(0);
+                    if (v == null) {
+                        v = mInflater.inflate(R.layout.drawer_item_users, parent, false);
+                    }
+                    TextView userNameTv = (TextView) v.findViewById(R.id.item_txt);
+                    ImageView dropdown = (ImageView) v.findViewById(R.id.dropdown);
 
                     User u = FlowApp.getApp().getUser();
                     String username = u != null ?
                             u.getName() :
-                            tv.getResources().getString(R.string.select_user);
-                    tv.setTextSize(ITEM_TEXT_SIZE);
-                    tv.setTextColor(Color.BLACK);
-                    tv.setText(username);
-
-                    img.setImageResource(R.drawable.ic_account_circle_black_48dp);
-                    img.setVisibility(View.VISIBLE);
+                            userNameTv.getResources().getString(R.string.select_user);
+                    userNameTv.setText(username);
                     dropdown.setImageResource(isExpanded ?
                             R.drawable.ic_action_collapse :
                             R.drawable.ic_action_expand);
-                    dropdown.setVisibility(View.VISIBLE);
                     break;
                 case GROUP_SURVEYS:
-                    divider.setMinimumHeight(surveyMinimumHeight);
-                    tv.setTextSize(ITEM_TEXT_SIZE);
-                    tv.setTextColor(surveyGroupTextColor);
-                    tv.setText(R.string.surveys);
-                    img.setVisibility(View.GONE);
-                    dropdown.setVisibility(View.GONE);
+                    if (v == null) {
+                        v = mInflater.inflate(R.layout.drawer_item_surveys, parent, false);
+                    }
                     break;
                 case GROUP_SETTINGS:
-                    divider.setMinimumHeight(settingsMinimumHeight);
-                    tv.setTextSize(ITEM_TEXT_SIZE);
-                    tv.setTextColor(Color.BLACK);
-                    tv.setText(R.string.settingslabel);
-                    img.setVisibility(View.GONE);
-                    dropdown.setVisibility(View.GONE);
+                    if (v == null) {
+                        v = mInflater.inflate(R.layout.drawer_item_settings, parent, false);
+                    }
                     break;
             }
 
