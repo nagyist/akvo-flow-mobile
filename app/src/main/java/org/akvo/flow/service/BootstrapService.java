@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2016 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
  *  This file is part of Akvo FLOW.
  *
@@ -24,18 +24,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
+
 import org.akvo.flow.R;
 import org.akvo.flow.data.dao.SurveyDao;
 import org.akvo.flow.data.database.SurveyDbAdapter;
@@ -48,6 +37,19 @@ import org.akvo.flow.util.LangsPreferenceUtil;
 import org.akvo.flow.util.NotificationHelper;
 import org.akvo.flow.util.StatusUtil;
 import org.akvo.flow.util.ViewUtil;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 /**
  * Service that will check a well-known location on the device's SD card for a
@@ -109,7 +111,6 @@ public class BootstrapService extends IntentService {
                         processFile(file);
                     } catch (Exception e) {
                         // try to roll back any database changes (if the zip has a rollback file)
-                        rollback(file);
                         String newFilename = file.getAbsolutePath();
                         file.renameTo(new File(newFilename + ConstantUtil.PROCESSED_ERROR_SUFFIX));
                         throw (e);
@@ -141,26 +142,6 @@ public class BootstrapService extends IntentService {
     }
 
     /**
-     * looks for the rollback file in the zip and, if it exists, attempts to
-     * execute the statements contained therein
-     */
-    private void rollback(File zipFile) throws Exception {
-        ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile));
-        ZipEntry entry;
-        while ((entry = zis.getNextEntry()) != null) {
-            String parts[] = entry.getName().split("/");
-            String fileName = parts[parts.length - 1];
-            // make sure we're not processing a hidden file
-            if (!fileName.startsWith(".")) {
-                if (entry.getName().toLowerCase()
-                        .endsWith(ConstantUtil.BOOTSTRAP_ROLLBACK_FILE.toLowerCase())) {
-                    processDbInstructions(FileUtil.readText(zis), false);
-                }
-            }
-        }
-    }
-
-    /**
      * processes a bootstrap zip file
      */
     private void processFile(File file) throws Exception {
@@ -179,10 +160,7 @@ public class BootstrapService extends IntentService {
                 continue;
             }
 
-            if (filename.endsWith(ConstantUtil.BOOTSTRAP_DB_FILE)) {
-                // DB instructions
-                processDbInstructions(FileUtil.readText(zipFile.getInputStream(entry)), true);
-            } else if (filename.endsWith(ConstantUtil.CASCADE_RES_SUFFIX)) {
+            if (filename.endsWith(ConstantUtil.CASCADE_RES_SUFFIX)) {
                 // Cascade resource
                 FileUtil.extract(new ZipInputStream(zipFile.getInputStream(entry)),
                         FileUtil.getFilesDir(FileType.RES));
@@ -307,30 +285,6 @@ public class BootstrapService extends IntentService {
         String entryName = entry.getName();
         String entryPaths[] = entryName == null ? new String[0] : entryName.split(File.separator);
         return entryPaths.length < 2 ? "" : entryPaths[entryPaths.length - 2];
-    }
-
-    /**
-     * tokenizes instructions using the newline character as a delimiter and
-     * executes each line as a separate SQL command;
-     */
-    private void processDbInstructions(String instructions, boolean failOnError)
-            throws Exception {
-        if (instructions != null && instructions.trim().length() > 0) {
-            String[] instructionList = instructions.split("\n");
-            for (String instruction : instructionList) {
-                String command = instruction.trim();
-                if (!command.endsWith(";")) {
-                    command = command + ";";
-                }
-                try {
-                    databaseAdapter.executeSql(command);
-                } catch (Exception e) {
-                    if (failOnError) {
-                        throw e;
-                    }
-                }
-            }
-        }
     }
 
     /**

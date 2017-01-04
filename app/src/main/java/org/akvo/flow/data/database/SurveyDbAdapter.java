@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2016 Stichting Akvo (Akvo Foundation)
+ * Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
  * This file is part of Akvo FLOW.
  *
@@ -703,16 +703,6 @@ public class SurveyDbAdapter {
     }
 
     /**
-     * executes a single insert/update/delete DML or any DDL statement without
-     * any bind arguments.
-     *
-     * @param sql
-     */
-    public void executeSql(String sql) {
-        database.execSQL(sql);
-    }
-
-    /**
      * reinserts the test survey into the database. For debugging purposes only.
      * The survey xml must exist in the APK
      */
@@ -737,9 +727,9 @@ public class SurveyDbAdapter {
         clearCollectedData();
 
         // Surveys and preferences
-        executeSql("DELETE FROM " + Tables.SURVEY);
-        executeSql("DELETE FROM " + Tables.SURVEY_GROUP);
-        executeSql("DELETE FROM " + Tables.USER);
+        database.execSQL("DELETE FROM " + Tables.SURVEY);
+        database.execSQL("DELETE FROM " + Tables.SURVEY_GROUP);
+        database.execSQL("DELETE FROM " + Tables.USER);
     }
 
     /**
@@ -747,11 +737,11 @@ public class SurveyDbAdapter {
      * any response saved in the database, as well as the transmission history.
      */
     public void clearCollectedData() {
-        executeSql("DELETE FROM " + Tables.SYNC_TIME);
-        executeSql("DELETE FROM " + Tables.RESPONSE);
-        executeSql("DELETE FROM " + Tables.SURVEY_INSTANCE);
-        executeSql("DELETE FROM " + Tables.RECORD);
-        executeSql("DELETE FROM " + Tables.TRANSMISSION);
+        database.execSQL("DELETE FROM " + Tables.SYNC_TIME);
+        database.execSQL("DELETE FROM " + Tables.RESPONSE);
+        database.execSQL("DELETE FROM " + Tables.SURVEY_INSTANCE);
+        database.execSQL("DELETE FROM " + Tables.RECORD);
+        database.execSQL("DELETE FROM " + Tables.TRANSMISSION);
     }
 
     /**
@@ -1389,7 +1379,7 @@ public class SurveyDbAdapter {
      * Delete any SurveyInstance that contains no response.
      */
     public void deleteEmptySurveyInstances() {
-        executeSql("DELETE FROM " + Tables.SURVEY_INSTANCE
+        database.execSQL("DELETE FROM " + Tables.SURVEY_INSTANCE
                 + " WHERE " + SurveyInstanceColumns._ID + " NOT IN "
                 + "(SELECT DISTINCT " + ResponseColumns.SURVEY_INSTANCE_ID
                 + " FROM " + Tables.RESPONSE + ")");
@@ -1399,7 +1389,7 @@ public class SurveyDbAdapter {
      * Delete any Record that contains no SurveyInstance
      */
     public void deleteEmptyRecords() {
-        executeSql("DELETE FROM " + Tables.RECORD
+        database.execSQL("DELETE FROM " + Tables.RECORD
                 + " WHERE " + RecordColumns.RECORD_ID + " NOT IN "
                 + "(SELECT DISTINCT " + SurveyInstanceColumns.RECORD_ID
                 + " FROM " + Tables.SURVEY_INSTANCE + ")");
