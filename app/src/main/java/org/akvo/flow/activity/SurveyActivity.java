@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2016 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
  *  This file is part of Akvo FLOW.
  *
@@ -24,11 +24,12 @@ import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
@@ -41,9 +42,12 @@ import org.akvo.flow.R;
 import org.akvo.flow.app.FlowApp;
 import org.akvo.flow.data.database.SurveyDbAdapter;
 import org.akvo.flow.data.database.SurveyInstanceStatus;
+import org.akvo.flow.data.preference.Prefs;
 import org.akvo.flow.domain.Survey;
 import org.akvo.flow.domain.SurveyGroup;
 import org.akvo.flow.domain.User;
+import org.akvo.flow.domain.apkupdate.ApkUpdateStore;
+import org.akvo.flow.domain.apkupdate.GsonMapper;
 import org.akvo.flow.domain.apkupdate.ViewApkData;
 import org.akvo.flow.service.BootstrapService;
 import org.akvo.flow.service.DataSyncService;
@@ -57,13 +61,12 @@ import org.akvo.flow.ui.fragment.DrawerFragment;
 import org.akvo.flow.ui.fragment.RecordListListener;
 import org.akvo.flow.util.ConstantUtil;
 import org.akvo.flow.util.PlatformUtil;
-import org.akvo.flow.data.preference.Prefs;
 import org.akvo.flow.util.StatusUtil;
 import org.akvo.flow.util.ViewUtil;
 
 import java.lang.ref.WeakReference;
 
-public class SurveyActivity extends ActionBarActivity implements RecordListListener,
+public class SurveyActivity extends AppCompatActivity implements RecordListListener,
         DrawerFragment.DrawerListener, DatapointsFragment.DatapointFragmentListener {
     private static final String TAG = SurveyActivity.class.getSimpleName();
 
@@ -82,6 +85,9 @@ public class SurveyActivity extends ActionBarActivity implements RecordListListe
     private CharSequence mDrawerTitle, mTitle;
     private Navigator navigator = new Navigator();
 
+    private Prefs prefs;
+    private ApkUpdateStore apkUpdateStore;
+
     /**
      * BroadcastReceiver to notify of surveys synchronisation. This should be
      * fired from {@link SurveyDownloadService}.
@@ -98,53 +104,18 @@ public class SurveyActivity extends ActionBarActivity implements RecordListListe
         mDatabase = new SurveyDbAdapter(this);
         mDatabase.open();
 
-        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
-
         mTitle = mDrawerTitle = getString(R.string.app_name);
 
         // Init navigation drawer
-        FragmentManager supportFragmentManager = getSupportFragmentManager();
-        mDrawer = (DrawerFragment) supportFragmentManager.findFragmentByTag(DRAWER_FRAGMENT_TAG);
-        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
-                R.drawable.ic_menu_white_48dp, R.string.drawer_open, R.string.drawer_close) {
+        initNavigationDrawer();
 
-            /** Called when a drawer has settled in a completely closed state. */
-            public void onDrawerClosed(View view) {
-                super.onDrawerClosed(view);
-                mDrawer.onDrawerClosed();
-                getSupportActionBar().setTitle(mTitle);
-                supportInvalidateOptionsMenu();
-            }
+        initDataPointsFragment(savedInstanceState);
 
-            /** Called when a drawer has settled in a completely open state. */
-            public void onDrawerOpened(View drawerView) {
-                super.onDrawerOpened(drawerView);
-                getSupportActionBar().setTitle(mDrawerTitle);
-                supportInvalidateOptionsMenu();
-            }
-        };
-
-        mDrawerLayout.setDrawerListener(mDrawerToggle);
-
-        // Automatically select the survey
-        SurveyGroup sg = mDatabase.getSurveyGroup(FlowApp.getApp().getSurveyGroupId());
-        if (sg != null) {
-            onSurveySelected(sg);
-        } else {
-            mDrawerLayout.openDrawer(Gravity.START);
-        }
-
-        if (savedInstanceState == null
-                || supportFragmentManager.findFragmentByTag(DATA_POINTS_FRAGMENT_TAG) == null) {
-            DatapointsFragment datapointsFragment = DatapointsFragment.newInstance(mSurveyGroup);
-            supportFragmentManager.beginTransaction()
-                    .replace(R.id.content_frame, datapointsFragment, DATA_POINTS_FRAGMENT_TAG)
-                    .commit();
-        }
-
+        prefs = new Prefs(getApplicationContext());
+        apkUpdateStore = new ApkUpdateStore(new GsonMapper(), prefs);
         // Start the setup Activity if necessary.
         boolean noDevIdYet = false;
-        if (!Prefs.getBoolean(this, Prefs.KEY_SETUP, false)) {
+        if (!prefs.getBoolean(Prefs.KEY_SETUP, false)) {
             noDevIdYet = true;
             navigator.navigateToAddUser(this);
         }
@@ -155,13 +126,70 @@ public class SurveyActivity extends ActionBarActivity implements RecordListListe
         if (savedInstanceState == null) {
             displaySelectedUser();
         }
+
     }
 
     private void initializeToolBar() {
         ActionBar supportActionBar = getSupportActionBar();
         if (supportActionBar != null) {
             supportActionBar.setDisplayHomeAsUpEnabled(true);
-            supportActionBar.setHomeButtonEnabled(true);
+        }
+    }
+
+    private void initNavigationDrawer() {
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        FragmentManager supportFragmentManager = getSupportFragmentManager();
+        mDrawer = (DrawerFragment) supportFragmentManager.findFragmentByTag(DRAWER_FRAGMENT_TAG);
+        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
+                 R.string.drawer_open, R.string.drawer_close) {
+
+            /** Called when a drawer has settled in a completely closed state. */
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                super.onDrawerClosed(drawerView);
+                mDrawer.onDrawerClosed();
+                getSupportActionBar().setTitle(mTitle);
+                supportInvalidateOptionsMenu();
+            }
+
+            /**
+             * Called when a drawer has settled in a completely open state.
+             */
+            @Override
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                //prevent the back icon from showing
+                super.onDrawerSlide(drawerView, 0);
+                getSupportActionBar().setTitle(mDrawerTitle);
+                supportInvalidateOptionsMenu();
+            }
+
+            @Override
+            public void onDrawerSlide(View drawerView, float slideOffset) {
+                //disable drawer animation
+                super.onDrawerSlide(drawerView, 0);
+            }
+        };
+
+        mDrawerLayout.addDrawerListener(mDrawerToggle);
+
+        // Automatically select the survey
+        SurveyGroup sg = mDatabase.getSurveyGroup(FlowApp.getApp().getSurveyGroupId());
+        if (sg != null) {
+            onSurveySelected(sg);
+        } else {
+            mDrawerLayout.openDrawer(GravityCompat.START);
+        }
+    }
+
+    private void initDataPointsFragment(Bundle savedInstanceState) {
+        FragmentManager supportFragmentManager = getSupportFragmentManager();
+        if (savedInstanceState == null
+                || supportFragmentManager.findFragmentByTag(DATA_POINTS_FRAGMENT_TAG) == null) {
+            DatapointsFragment datapointsFragment = DatapointsFragment.newInstance(mSurveyGroup);
+            supportFragmentManager.beginTransaction()
+                    .replace(R.id.content_frame, datapointsFragment, DATA_POINTS_FRAGMENT_TAG)
+                    .commit();
         }
     }
 
@@ -173,12 +201,12 @@ public class SurveyActivity extends ActionBarActivity implements RecordListListe
             case ConstantUtil.REQUEST_ADD_USER:
                 if (resultCode == RESULT_OK) {
                     displaySelectedUser();
-                    Prefs.setBoolean(this, Prefs.KEY_SETUP, true);
+                    prefs.setBoolean(Prefs.KEY_SETUP, true);
                     // Trigger the delayed services, so the first
                     // backend connections uses the new Device ID
                     startService(new Intent(this, SurveyDownloadService.class));
                     startService(new Intent(this, DataSyncService.class));
-                } else if (!Prefs.getBoolean(this, Prefs.KEY_SETUP, false)) {
+                } else if (!prefs.getBoolean(Prefs.KEY_SETUP, false)) {
                     finish();
                 }
                 break;
@@ -194,10 +222,11 @@ public class SurveyActivity extends ActionBarActivity implements RecordListListe
         registerReceiver(mSurveysSyncReceiver,
                 new IntentFilter(getString(R.string.action_surveys_sync)));
 
-        ViewApkData apkData = Prefs.getApkData(this);
-        if (apkData != null && PlatformUtil
+        ViewApkData apkData = apkUpdateStore.getApkData();
+        boolean shouldNotifyUpdate = apkUpdateStore.shouldNotifyNewVersion();
+        if (apkData != null && shouldNotifyUpdate && PlatformUtil
                 .isNewerVersion(BuildConfig.VERSION_NAME, apkData.getVersion())) {
-            Prefs.clearApkData(this);
+            apkUpdateStore.saveAppUpdateNotifiedTime();
             navigator.navigateToAppUpdate(this, apkData);
         }
     }

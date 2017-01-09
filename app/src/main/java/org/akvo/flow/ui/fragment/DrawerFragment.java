@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2016 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
  *  This file is part of Akvo FLOW.
  *
@@ -21,12 +21,13 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.annotation.ColorInt;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.Loader;
 import android.text.TextUtils;
 import android.view.ContextMenu;
@@ -375,19 +376,19 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
         private final List<User> mUsers;
         private final List<SurveyGroup> mSurveys;
         private final int leftPadding;
-        private final ColorStateList selectedSurveyTextColor;
         private final int selectedSurveyBackgroundColor;
+
+        @ColorInt
+        private final int mHighlightColor;
 
         DrawerAdapter(Context context) {
             this.mInflater = LayoutInflater.from(context);
             this.mUsers = new ArrayList<>();
             this.mSurveys = new ArrayList<>();
             this.leftPadding = (int) PlatformUtil.dp2Pixel(context, LEFT_PADDING_DP);
-            int highlightColor = PlatformUtil.getResource(context, R.attr.textColorSecondary);
-            this.selectedSurveyTextColor = context.getResources()
-                    .getColorStateList(highlightColor);
-            this.selectedSurveyBackgroundColor = context.getResources()
-                    .getColor(R.color.background_alternate);
+            this.mHighlightColor = ContextCompat.getColor(context, R.color.orange_main);
+            this.selectedSurveyBackgroundColor = ContextCompat
+                    .getColor(context, R.color.background_alternate);
         }
 
         @Override
@@ -504,7 +505,7 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
                     SurveyGroup sg = mSurveys.get(childPosition);
                     tv.setText(sg.getName());
                     if (sg.getId() == FlowApp.getApp().getSurveyGroupId()) {
-                        tv.setTextColor(selectedSurveyTextColor);
+                        tv.setTextColor(mHighlightColor);
                         v.setBackgroundColor(selectedSurveyBackgroundColor);
                     }
                     v.setTag(sg);
@@ -575,7 +576,8 @@ public class DrawerFragment extends Fragment implements ExpandableListView.OnChi
         }
     }
 
-    private static class SurveyGroupLoaderCallback implements LoaderManager.LoaderCallbacks<List<SurveyGroup>> {
+    private static class SurveyGroupLoaderCallback
+            implements LoaderManager.LoaderCallbacks<List<SurveyGroup>> {
 
         private final WeakReference<DrawerFragment> fragmentWeakReference;
 
