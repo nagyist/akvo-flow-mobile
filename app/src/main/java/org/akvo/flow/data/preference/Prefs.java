@@ -1,18 +1,20 @@
 /*
  * Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
- * This file is part of Akvo FLOW.
+ *  This file is part of Akvo Flow.
  *
- * Akvo FLOW is free software: you can redistribute it and modify it under the terms of
- * the GNU Affero General Public License (AGPL) as published by the Free Software Foundation,
- * either version 3 of the License or any later version.
+ *  Akvo Flow is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
- * Akvo FLOW is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU Affero General Public License included below for more details.
+ *  Akvo Flow is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * The full license text can also be seen at <http://www.gnu.org/licenses/agpl.html>.
- *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Akvo Flow.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.akvo.flow.data.preference;
@@ -22,6 +24,7 @@ import android.content.SharedPreferences;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
+import org.akvo.flow.data.migration.preferences.InsertablePreferences;
 import org.akvo.flow.util.ConstantUtil;
 
 /**
@@ -39,6 +42,7 @@ public class Prefs {
     public static final String KEY_SCREEN_ON = "screen.keepon";
     public static final String KEY_DEVICE_IDENTIFIER = "device.identifier";
     public static final String KEY_MAX_IMG_SIZE = "media.img.maxsize";
+    public static final String KEY_SPACE_AVAILABLE = "cardMBAvaliable";
 
     private static final String PREFS_NAME = "flow_prefs";
     private static final int PREFS_MODE = Context.MODE_PRIVATE;
@@ -47,6 +51,7 @@ public class Prefs {
     public static final int DEFAULT_VALUE_IMAGE_SIZE = ConstantUtil.IMAGE_SIZE_320_240;
     public static final boolean DEFAULT_VALUE_CELL_UPLOAD = false;
     public static final boolean DEFAULT_VALUE_SCREEN_ON = true;
+    public static final long DEF_VALUE_SPACE_AVAILABLE = 101L;
 
     private final Context context;
 

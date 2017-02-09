@@ -1,17 +1,20 @@
 /*
  *  Copyright (C) 2013-2017 Stichting Akvo (Akvo Foundation)
  *
- *  This file is part of Akvo FLOW.
+ *  This file is part of Akvo Flow.
  *
- *  Akvo FLOW is free software: you can redistribute it and modify it under the terms of
- *  the GNU Affero General Public License (AGPL) as published by the Free Software Foundation,
- *  either version 3 of the License or any later version.
+ *  Akvo Flow is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
- *  Akvo FLOW is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *  See the GNU Affero General Public License included below for more details.
+ *  Akvo Flow is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- *  The full license text can also be seen at <http://www.gnu.org/licenses/agpl.html>.
+ *  You should have received a copy of the GNU General Public License
+ *  along with Akvo Flow.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.akvo.flow.app;
@@ -21,29 +24,23 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
-import android.util.Log;
 import android.widget.Toast;
 
-import org.akvo.flow.BuildConfig;
 import org.akvo.flow.R;
 import org.akvo.flow.data.database.SurveyDbAdapter;
 import org.akvo.flow.data.database.UserColumns;
-import org.akvo.flow.domain.Survey;
+import org.akvo.flow.data.preference.Prefs;
 import org.akvo.flow.domain.SurveyGroup;
 import org.akvo.flow.domain.User;
 import org.akvo.flow.service.ApkUpdateService;
 import org.akvo.flow.util.ConstantUtil;
-import org.akvo.flow.util.LangsPreferenceUtil;
-import org.akvo.flow.data.preference.Prefs;
+import org.akvo.flow.util.logging.LoggingFactory;
+import org.akvo.flow.util.logging.LoggingHelper;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 
-import timber.log.Timber;
-
 public class FlowApp extends Application {
-    private static final String TAG = FlowApp.class.getSimpleName();
     private static FlowApp app;// Singleton
 
     //TODO: use shared pref?
@@ -53,20 +50,26 @@ public class FlowApp extends Application {
     private long mSurveyGroupId;// Hacky way of filtering the survey group in Record search
     private Prefs prefs;
 
+    private final LoggingFactory loggingFactory = new LoggingFactory();
+
     @Override
     public void onCreate() {
         super.onCreate();
         prefs = new Prefs(getApplicationContext());
-        if (BuildConfig.DEBUG) {
-            Timber.plant(new Timber.DebugTree());
-        }
+        initLogging();
         init();
         startUpdateService();
         app = this;
     }
 
     private void startUpdateService() {
-        ApkUpdateService.scheduleRepeat(this);
+        ApkUpdateService.scheduleFirstTask(this);
+    }
+
+    private void initLogging() {
+        LoggingHelper helper = loggingFactory.createLoggingHelper(this);
+        helper.initDebugTree();
+        helper.initSentry();
     }
 
     public static FlowApp getApp() {
@@ -104,15 +107,13 @@ public class FlowApp extends Application {
                 language = ConstantUtil.ENGLISH_CODE;// TODO: Move this constant to @strings
             }
         }
-        //TODO: only set the language if it is diferent than the device locale
+        //TODO: only set the language if it is different than the device locale
         setAppLanguage(language, false);
 
         loadLastUser();
 
         // Load last survey group
         mSurveyGroupId = prefs.getLong(Prefs.KEY_SURVEY_GROUP_ID, SurveyGroup.ID_NONE);
-
-        mSurveyChecker.run();// Ensure surveys have put their languages
     }
     
     public void setUser(User user) {
@@ -199,44 +200,5 @@ public class FlowApp extends Application {
     private void saveLocalePref(String language) {
         prefs.setString(Prefs.KEY_LOCALE, language);
     }
-
-    /**
-     * Old versions of the app may not have translations support, thus they will
-     * not store languages preference in the database. This task ensures that
-     * any language stored in the device has properly set its languages in the
-     * database, making them available to the user through the settings menu.
-     */
-    private final Runnable mSurveyChecker = new Runnable() {
-
-        @Override
-        public void run() {
-            SurveyDbAdapter database = new SurveyDbAdapter(FlowApp.this);
-            database.open();
-
-            // We check for the key not present in old devices: 'survey.languagespresent'
-            // NOTE: 'survey.language' DID exist
-            if (database.getPreference(ConstantUtil.SURVEY_LANG_PRESENT_KEY) == null) {
-                Log.d(TAG, "Recomputing available languages...");
-                Toast.makeText(getApplicationContext(), R.string.configuring_languages,
-                        Toast.LENGTH_SHORT)
-                        .show();
-
-                // First, we add the default property, to avoid null cases within
-                // the process
-                database.savePreference(ConstantUtil.SURVEY_LANG_SETTING_KEY, "");
-                database.savePreference(ConstantUtil.SURVEY_LANG_PRESENT_KEY, "");
-
-                // Recompute all the surveys, and store their languages
-                List<Survey> surveyList = database.getSurveyList(SurveyGroup.ID_NONE);
-                for (Survey survey : surveyList) {
-                    String[] langs = LangsPreferenceUtil.determineLanguages(FlowApp.this, survey);
-                    Log.d(TAG, "Adding languages: " + Arrays.toString(langs));
-                    database.addLanguages(langs);
-                }
-            }
-
-            database.close();
-        }
-    };
 
 }

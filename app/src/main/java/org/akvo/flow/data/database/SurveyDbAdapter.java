@@ -1,15 +1,20 @@
 /*
- * Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
+ *  Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
- * This file is part of Akvo FLOW.
+ *  This file is part of Akvo Flow.
  *
- * Akvo FLOW is free software: you can redistribute it and modify it under the terms of
- * the GNU Affero General Public License (AGPL) as published by the Free Software Foundation,
- * either version 3 of the License or any later version.
+ *  Akvo Flow is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
- * Akvo FLOW is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU Affero General Public License included below for more details.
+ *  Akvo Flow is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Akvo Flow.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full license text can also be seen at <http://www.gnu.org/licenses/agpl.html>.
  *
@@ -24,8 +29,6 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.text.TextUtils;
 
-import org.akvo.flow.R;
-import org.akvo.flow.data.preference.PreferenceHandler;
 import org.akvo.flow.domain.FileTransmission;
 import org.akvo.flow.domain.QuestionResponse;
 import org.akvo.flow.domain.Survey;
@@ -37,14 +40,10 @@ import org.akvo.flow.util.ConstantUtil;
 import org.akvo.flow.util.PlatformUtil;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 
 import timber.log.Timber;
 
@@ -92,7 +91,7 @@ public class SurveyDbAdapter {
      * @throws SQLException if the database could be neither opened or created
      */
     public SurveyDbAdapter open() throws SQLException {
-        databaseHelper = new DatabaseHelper(context);
+        databaseHelper = new DatabaseHelper(context, new LanguageTable());
         database = databaseHelper.getWritableDatabase();
         return this;
     }
@@ -457,8 +456,7 @@ public class SurveyDbAdapter {
         updatedValues.put(SurveyColumns.LOCATION, survey.getLocation());
         updatedValues.put(SurveyColumns.FILENAME, survey.getFileName());
         updatedValues.put(SurveyColumns.NAME, survey.getName());
-        updatedValues.put(SurveyColumns.LANGUAGE, survey.getLanguage() != null ? survey
-                .getLanguage().toLowerCase() : ConstantUtil.ENGLISH_CODE);
+        updatedValues.put(SurveyColumns.LANGUAGE, survey.getDefaultLanguageCode());
         updatedValues.put(SurveyColumns.SURVEY_GROUP_ID, surveyGroupId);
         updatedValues.put(SurveyColumns.HELP_DOWNLOADED, survey.isHelpDownloaded() ? 1 : 0);
         //updatedValues.put(SurveyColumns., ConstantUtil.NOT_DELETED);
@@ -499,43 +497,6 @@ public class SurveyDbAdapter {
         }
 
         return survey;
-    }
-
-    /**
-     * returns the value of a single setting identified by the key passed in
-     */
-    public String getPreference(String key) {
-        return databaseHelper.findPreference(database, key);
-    }
-
-    /**
-     * Lists all settings from the database
-     * TODO: move to {@link PreferenceHandler}
-     */
-    public HashMap<String, String> getPreferences() {
-        HashMap<String, String> settings = new HashMap<>();
-        Cursor cursor = database.query(Tables.PREFERENCES, new String[] {
-                PreferencesColumns.KEY, PreferencesColumns.VALUE
-        }, null, null, null, null, null);
-        if (cursor != null) {
-            if (cursor.getCount() > 0) {
-                cursor.moveToFirst();
-                do {
-                    settings.put(cursor.getString(cursor
-                            .getColumnIndexOrThrow(PreferencesColumns.KEY)), cursor
-                            .getString(cursor.getColumnIndexOrThrow(PreferencesColumns.VALUE)));
-                } while (cursor.moveToNext());
-            }
-            cursor.close();
-        }
-        return settings;
-    }
-
-    /**
-     * persists setting to the db
-     */
-    public void savePreference(String key, String value) {
-        databaseHelper.savePreference(database, key, value);
     }
 
     /**
@@ -756,70 +717,6 @@ public class SurveyDbAdapter {
                 new String[] {
                         id.toString()
                 });
-    }
-
-    private HashSet<String> stringToSet(String item) {
-        HashSet<String> set = new HashSet<>();
-        StringTokenizer strTok = new StringTokenizer(item, ",");
-        while (strTok.hasMoreTokens()) {
-            set.add(strTok.nextToken());
-        }
-        return set;
-    }
-
-    private String setToString(HashSet<String> set) {
-        boolean isFirst = true;
-        StringBuilder buffer = new StringBuilder();
-        Iterator<String> itr = set.iterator();
-
-        for (int i = 0; i < set.size(); i++) {
-            if (!isFirst) {
-                buffer.append(",");
-            } else {
-                isFirst = false;
-            }
-            buffer.append(itr.next());
-        }
-        return buffer.toString();
-    }
-
-    public void addLanguages(String[] values) {
-        // values holds the 2-letter codes of the languages. We first have to
-        // find out what the indexes are
-
-        String[] langCodesArray = context.getResources().getStringArray(
-                R.array.alllanguagecodes);
-        int[] valuesIndex = new int[values.length];
-        List<String> langCodesList = Arrays.asList(langCodesArray);
-        int index;
-        for (int i = 0; i < values.length; i++) {
-            index = langCodesList.indexOf(values[i]);
-            if (index != -1) {
-                valuesIndex[i] = index;
-            }
-        }
-
-        String langsSelection = getPreference(ConstantUtil.SURVEY_LANG_SETTING_KEY);
-        String langsPresentIndexes = getPreference(ConstantUtil.SURVEY_LANG_PRESENT_KEY);
-
-        HashSet<String> langsSelectionSet = stringToSet(langsSelection);
-        HashSet<String> langsPresentIndexesSet = stringToSet(langsPresentIndexes);
-
-        for (int i = 0; i < values.length; i++) {
-            // values[0] holds the default language. That is the one that will
-            // be turned 'on'.
-            if (i == 0) {
-                langsSelectionSet.add(valuesIndex[i] + "");
-            }
-            langsPresentIndexesSet.add(valuesIndex[i] + "");
-        }
-
-        String newLangsSelection = setToString(langsSelectionSet);
-        String newLangsPresentIndexes = setToString(langsPresentIndexesSet);
-
-        savePreference(ConstantUtil.SURVEY_LANG_SETTING_KEY, newLangsSelection);
-        savePreference(ConstantUtil.SURVEY_LANG_PRESENT_KEY,
-                newLangsPresentIndexes);
     }
 
     public void addSurveyGroup(SurveyGroup surveyGroup) {

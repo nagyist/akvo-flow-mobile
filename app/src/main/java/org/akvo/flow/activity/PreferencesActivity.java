@@ -1,17 +1,20 @@
 /*
  *  Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
  *
- *  This file is part of Akvo FLOW.
+ *  This file is part of Akvo Flow.
  *
- *  Akvo FLOW is free software: you can redistribute it and modify it under the terms of
- *  the GNU Affero General Public License (AGPL) as published by the Free Software Foundation,
- *  either version 3 of the License or any later version.
+ *  Akvo Flow is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
- *  Akvo FLOW is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *  See the GNU Affero General Public License included below for more details.
+ *  Akvo Flow is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- *  The full license text can also be seen at <http://www.gnu.org/licenses/agpl.html>.
+ *  You should have received a copy of the GNU General Public License
+ *  along with Akvo Flow.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package org.akvo.flow.activity;
@@ -31,19 +34,13 @@ import android.widget.TextView;
 
 import org.akvo.flow.R;
 import org.akvo.flow.app.FlowApp;
-import org.akvo.flow.data.database.SurveyDbAdapter;
 import org.akvo.flow.data.preference.Prefs;
 import org.akvo.flow.service.SurveyDownloadService;
-import org.akvo.flow.util.ArrayPreferenceUtil;
-import org.akvo.flow.util.ConstantUtil;
-import org.akvo.flow.util.LangsPreferenceData;
-import org.akvo.flow.util.LangsPreferenceUtil;
 import org.akvo.flow.util.ServerManager;
 import org.akvo.flow.util.StringUtil;
 import org.akvo.flow.util.ViewUtil;
 
 import java.lang.ref.WeakReference;
-import java.util.HashMap;
 
 /**
  * Displays user editable preferences and takes care of persisting them to the
@@ -56,21 +53,13 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
         OnCheckedChangeListener {
     private CheckBox screenOnCheckbox;
     private CheckBox mobileDataCheckbox;
-    private TextView languageTextView;
     private TextView serverTextView;
     private TextView identTextView;
     private TextView maxImgSizeTextView;
     private TextView localeTextView;
 
-    private SurveyDbAdapter database;
     private Prefs prefs;
     private ServerManager serverManager;
-
-    private LangsPreferenceData langsPrefData;
-    private String[] langsSelectedNameArray;
-    private boolean[] langsSelectedBooleanArray;
-    private int[] langsSelectedMasterIndexArray;
-
     private String[] maxImgSizes;
 
     public void onCreate(Bundle savedInstanceState) {
@@ -79,7 +68,6 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
 
         screenOnCheckbox = (CheckBox) findViewById(R.id.screenoptcheckbox);
         mobileDataCheckbox = (CheckBox) findViewById(R.id.uploadoptioncheckbox);
-        languageTextView = (TextView) findViewById(R.id.surveylangvalue);
         serverTextView = (TextView) findViewById(R.id.servervalue);
         identTextView = (TextView) findViewById(R.id.identvalue);
         maxImgSizeTextView = (TextView) findViewById(R.id.max_img_size_txt);
@@ -95,7 +83,6 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
         screenOnCheckbox.setOnCheckedChangeListener(this);
         mobileDataCheckbox.setOnCheckedChangeListener(this);
         findViewById(R.id.pref_locale).setOnClickListener(this);
-        findViewById(R.id.pref_surveylang).setOnClickListener(this);
         findViewById(R.id.pref_server).setOnClickListener(this);
         findViewById(R.id.pref_deviceid).setOnClickListener(this);
         findViewById(R.id.pref_resize).setOnClickListener(this);
@@ -111,15 +98,6 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
 
     private void populateLanguagePreferences() {
         localeTextView.setText(FlowApp.getApp().getAppDisplayLanguage());
-
-        HashMap<String, String> settings = database.getPreferences();
-        String val = settings.get(ConstantUtil.SURVEY_LANG_SETTING_KEY);
-        String langsPresentIndexes = settings.get(ConstantUtil.SURVEY_LANG_PRESENT_KEY);
-        langsPrefData = LangsPreferenceUtil.createLangPrefData(this, val, langsPresentIndexes);
-
-        languageTextView.setText(ArrayPreferenceUtil.formSelectedItemString(
-                langsPrefData.getLangsSelectedNameArray(),
-                langsPrefData.getLangsSelectedBooleanArray()));
     }
 
     private void populateFromSharedPreferences() {
@@ -143,14 +121,7 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
      */
     public void onResume() {
         super.onResume();
-        database = new SurveyDbAdapter(this);
-        database.open();
         populateFields();
-    }
-
-    public void onPause() {
-        database.close();
-        super.onPause();
     }
 
     /**
@@ -160,32 +131,6 @@ public class PreferencesActivity extends BackActivity implements OnClickListener
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.pref_surveylang:
-                langsSelectedNameArray = langsPrefData.getLangsSelectedNameArray();
-                langsSelectedBooleanArray = langsPrefData.getLangsSelectedBooleanArray();
-                langsSelectedMasterIndexArray = langsPrefData.getLangsSelectedMasterIndexArray();
-
-                ViewUtil.displayLanguageSelector(this, langsSelectedNameArray,
-                        langsSelectedBooleanArray,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int clicked) {
-                                database.savePreference(
-                                        ConstantUtil.SURVEY_LANG_SETTING_KEY,
-                                        LangsPreferenceUtil
-                                                .formLangPreferenceString(langsSelectedBooleanArray,
-                                                        langsSelectedMasterIndexArray)
-                                );
-
-                                languageTextView.setText(ArrayPreferenceUtil
-                                        .formSelectedItemString(langsSelectedNameArray,
-                                                langsSelectedBooleanArray));
-                                if (dialog != null) {
-                                    dialog.dismiss();
-                                }
-                            }
-                        }
-                );
-                break;
             case R.id.pref_locale:
                 showLanguageDialog();
                 break;

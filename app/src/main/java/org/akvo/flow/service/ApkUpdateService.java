@@ -1,24 +1,26 @@
 /*
 * Copyright (C) 2010-2017 Stichting Akvo (Akvo Foundation)
 *
-* This file is part of Akvo FLOW.
-*
-* Akvo FLOW is free software: you can redistribute it and modify it under the terms of
-* the GNU Affero General Public License (AGPL) as published by the Free Software Foundation,
-* either version 3 of the License or any later version.
-*
-* Akvo FLOW is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU Affero General Public License included below for more details.
-*
-* The full license text can also be seen at <http://www.gnu.org/licenses/agpl.html>.
+ *  This file is part of Akvo Flow.
+ *
+ *  Akvo Flow is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Akvo Flow is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Akvo Flow.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 package org.akvo.flow.service;
 
 import android.content.Context;
 import android.support.v4.util.Pair;
-import android.util.Log;
 
 import com.google.android.gms.gcm.GcmNetworkManager;
 import com.google.android.gms.gcm.GcmTaskService;
@@ -32,6 +34,8 @@ import org.akvo.flow.domain.apkupdate.GsonMapper;
 import org.akvo.flow.domain.apkupdate.ViewApkData;
 import org.akvo.flow.util.ConnectivityStateManager;
 import org.akvo.flow.util.ConstantUtil;
+
+import timber.log.Timber;
 
 /**
  * This background service will check the rest api for a new version of the APK.
@@ -49,14 +53,20 @@ public class ApkUpdateService extends GcmTaskService {
 
     private ApkUpdateHelper apkUpdateHelper;
 
-    public static void scheduleRepeat(Context context) {
+    public static void scheduleFirstTask(Context context) {
+        schedulePeriodicTask(context, ConstantUtil.FIRST_REPEAT_INTERVAL_IN_SECONDS,
+                ConstantUtil.FIRST_FLEX_INTERVAL_IN_SECOND);
+    }
+
+    private static void schedulePeriodicTask(Context context, int repeatIntervalInSeconds,
+            int flexIntervalInSeconds) {
         try {
             PeriodicTask periodic = new PeriodicTask.Builder()
                     .setService(ApkUpdateService.class)
                     //repeat every x seconds
-                    .setPeriod(ConstantUtil.REPEAT_INTERVAL_IN_SECONDS)
+                    .setPeriod(repeatIntervalInSeconds)
                     //specify how much earlier the task can be executed (in seconds)
-                    .setFlex(ConstantUtil.FLEX_IN_SECONDS)
+                    .setFlex(flexIntervalInSeconds)
                     .setTag(TAG)
                     //whether the task persists after device reboot
                     .setPersisted(true)
@@ -68,7 +78,7 @@ public class ApkUpdateService extends GcmTaskService {
                     .setRequiresCharging(false).build();
             GcmNetworkManager.getInstance(context).schedule(periodic);
         } catch (Exception e) {
-            Log.e(TAG, "scheduleRepeat failed", e);
+            Timber.e(e, "scheduleRepeat failed");
         }
     }
 
@@ -86,7 +96,7 @@ public class ApkUpdateService extends GcmTaskService {
     @Override
     public void onInitializeTasks() {
         super.onInitializeTasks();
-        scheduleRepeat(this);
+        scheduleFirstTask(this);
     }
 
     /**
@@ -96,13 +106,16 @@ public class ApkUpdateService extends GcmTaskService {
      */
     @Override
     public int onRunTask(TaskParams taskParams) {
+        //after the first time the task is run we reschedule to a higher interval
+        schedulePeriodicTask(this, ConstantUtil.REPEAT_INTERVAL_IN_SECONDS,
+                ConstantUtil.FLEX_INTERVAL_IN_SECONDS);
         Context applicationContext = getApplicationContext();
         apkUpdateHelper = new ApkUpdateHelper(applicationContext);
         ConnectivityStateManager connectivityStateManager = new ConnectivityStateManager(
                 applicationContext);
         Prefs prefs = new Prefs(applicationContext);
         if (!syncOverMobileNetworksAllowed(prefs) && !connectivityStateManager.isWifiConnected()) {
-            Log.d(TAG, "No available authorised connection. Can't perform the requested operation");
+            Timber.d("No available authorised connection. Can't perform the requested operation");
             return GcmNetworkManager.RESULT_SUCCESS;
         }
 
@@ -115,7 +128,7 @@ public class ApkUpdateService extends GcmTaskService {
             }
             return GcmNetworkManager.RESULT_SUCCESS;
         } catch (Exception e) {
-            Log.e(TAG, "Error with apk version service", e);
+            Timber.e(e, "Error with apk version service");
             return GcmNetworkManager.RESULT_FAILURE;
         }
     }
