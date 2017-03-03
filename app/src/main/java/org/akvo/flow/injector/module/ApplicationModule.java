@@ -33,6 +33,7 @@ import org.akvo.flow.data.repository.SurveyDataRepository;
 import org.akvo.flow.data.repository.UserDataRepository;
 import org.akvo.flow.database.DatabaseHelper;
 import org.akvo.flow.database.LanguageTable;
+import org.akvo.flow.database.britedb.BriteSurveyDbAdapter;
 import org.akvo.flow.domain.executor.PostExecutionThread;
 import org.akvo.flow.domain.executor.ThreadExecutor;
 import org.akvo.flow.domain.repository.SurveyRepository;
@@ -91,6 +92,12 @@ public class ApplicationModule {
     @Singleton
     SQLiteOpenHelper provideOpenHelper() {
         return new DatabaseHelper(application, new LanguageTable());
+    }
+
+    @Provides
+    @Singleton
+    BriteSurveyDbAdapter briteSurveyDbAdapter(BriteDatabase briteDatabase) {
+        return new BriteSurveyDbAdapter(briteDatabase);
     }
 
     @Provides

@@ -51,8 +51,8 @@ public class DatabaseDataSource {
     private final BriteSurveyDbAdapter briteSurveyDbAdapter;
 
     @Inject
-    public DatabaseDataSource(BriteDatabase db) {
-        this.briteSurveyDbAdapter = new BriteSurveyDbAdapter(db);
+    public DatabaseDataSource(BriteSurveyDbAdapter briteSurveyDbAdapter) {
+        this.briteSurveyDbAdapter = briteSurveyDbAdapter;
     }
 
     public Observable<Cursor> getDataPoints(@NonNull Long surveyGroupId, @Nullable Double latitude,
