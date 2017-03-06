@@ -22,6 +22,7 @@ package org.akvo.flow.data.entity;
 
 import android.database.Cursor;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import org.akvo.flow.database.SurveyDbAdapter;
 import org.akvo.flow.database.SurveyInstanceColumns;
@@ -62,7 +63,7 @@ public class DataPointMapper {
     }
 
     @NonNull
-    public List<DataPoint> getDataPoints(Cursor cursor) {
+    public List<DataPoint> getDataPoints(@Nullable Cursor cursor) {
         List<DataPoint> items = new ArrayList<>();
         if (cursor != null) {
             if (cursor.moveToFirst()) {
