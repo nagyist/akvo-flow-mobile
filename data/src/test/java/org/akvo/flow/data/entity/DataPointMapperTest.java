@@ -48,6 +48,7 @@ public class DataPointMapperTest {
     public static final double MOCK_LONGITUDE = 2d;
     public static final int MOCK_STATUS_INDEX = 7;
     public static final int MOCK_STATUS = 1;
+
     @Mock
     Cursor mockCursor;
 
